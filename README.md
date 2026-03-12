@@ -1,0 +1,2 @@
+# AeroForge-AI-Intelligent-Aerospace-Component-Design-Platform
+AeroForge AI is an intelligent aerospace design platform that enables users to generate, visualize, and analyze aircraft components using AI and interactive 3D visualization. The system allows users to create components through parameter inputs or prompts, place them on a 3D aircraft model, evaluate performance, compare designs, and manage savings.
