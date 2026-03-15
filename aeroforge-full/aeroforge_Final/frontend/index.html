@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroForge AI — Aerospace Design Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#020509;--bg2:#040a10;--card:#07111e;--border2:#123050;--primary:#00e5ff;--accent:#39ff14;--text:#c8dff0;--text2:#4d8099;--text3:#1e3d52;--orb:'Orbitron',monospace;--raj:'Rajdhani',sans-serif;--mono:'Share Tech Mono',monospace;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--raj);overflow:hidden;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,.009) 2px,rgba(0,229,255,.009) 4px);pointer-events:none;z-index:1;}
+
+/* HERO */
+.hero{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 35%,#030c18 0%,#010408 100%);overflow:hidden;}
+.stars{position:absolute;inset:0;}
+.star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) var(--dl,0s) infinite;}
+@keyframes twinkle{0%,100%{opacity:.08}50%{opacity:var(--op,.6)}}
+.scan-line{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--primary),transparent);animation:scan 6s linear infinite;opacity:.25;}
+@keyframes scan{0%{top:-1px}100%{top:100%}}
+.corners .c{position:absolute;width:36px;height:36px;opacity:.5;}
+.c.tl{top:24px;left:24px;border-top:1px solid var(--primary);border-left:1px solid var(--primary);}
+.c.tr{top:24px;right:24px;border-top:1px solid var(--primary);border-right:1px solid var(--primary);}
+.c.bl{bottom:24px;left:24px;border-bottom:1px solid var(--primary);border-left:1px solid var(--primary);}
+.c.br{bottom:24px;right:24px;border-bottom:1px solid var(--primary);border-right:1px solid var(--primary);}
+
+/* AIRCRAFT SVG */
+.aircraft-wrap{position:relative;width:580px;height:180px;margin-bottom:32px;animation:drift 8s ease-in-out infinite;}
+@keyframes drift{0%,100%{transform:translateY(0) rotate(-.4deg)}50%{transform:translateY(-12px) rotate(.3deg)}}
+.aircraft-wrap svg{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(0,180,255,.5)) drop-shadow(0 0 60px rgba(0,229,255,.2));}
+
+/* CONTENT */
+.content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;}
+.brand{font-family:var(--orb);font-size:clamp(28px,5vw,56px);font-weight:900;letter-spacing:10px;text-transform:uppercase;color:var(--primary);text-shadow:0 0 30px rgba(0,229,255,.7),0 0 80px rgba(0,229,255,.3);animation:fadeUp .8s .2s ease both;}
+.tagline{font-family:var(--mono);font-size:11px;color:var(--text2);letter-spacing:4px;text-transform:uppercase;margin-top:8px;animation:fadeUp .8s .4s ease both;}
+.tagline span{color:var(--accent);}
+.desc{font-family:var(--raj);font-size:15px;color:var(--text2);margin-top:16px;max-width:480px;line-height:1.7;animation:fadeUp .8s .6s ease both;}
+.cta-row{display:flex;gap:16px;margin-top:36px;animation:fadeUp .8s .8s ease both;}
+.btn{font-family:var(--orb);font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;padding:13px 40px;border:none;cursor:pointer;border-radius:3px;text-decoration:none;transition:all .25s;display:inline-block;}
+.btn-primary{background:var(--primary);color:#000;box-shadow:0 0 25px rgba(0,229,255,.4);}
+.btn-primary:hover{background:#33eeff;box-shadow:0 0 40px rgba(0,229,255,.7);transform:translateY(-2px);}
+.btn-outline{background:transparent;color:var(--primary);border:1px solid var(--primary);}
+.btn-outline:hover{background:rgba(0,229,255,.08);transform:translateY(-2px);}
+.stats-row{display:flex;gap:48px;margin-top:40px;animation:fadeUp .8s 1s ease both;}
+.stat-val{font-family:var(--orb);font-size:24px;font-weight:700;color:var(--primary);}
+.stat-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+/* HUD dots */
+.hud-dots{position:absolute;bottom:28px;display:flex;gap:10px;align-items:center;animation:fadeUp .8s 1.2s ease both;}
+.hud-dot{width:7px;height:7px;border-radius:50%;}
+.hud-dot.green{background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 2s infinite;}
+.hud-dot.blue{background:var(--primary);box-shadow:0 0 8px var(--primary);animation:pulse 2s .5s infinite;}
+.hud-dot.off{background:var(--text3);}
+.hud-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="stars" id="stars"></div>
+  <div class="scan-line"></div>
+  <div class="corners"><span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span></div>
+
+  <div class="content">
+    <!-- Clean aerospace aircraft SVG (no animation clutter) -->
+    <div class="aircraft-wrap">
+      <svg viewBox="0 0 580 180" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <defs>
+          <linearGradient id="body" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#0a1a2e"/>
+            <stop offset="40%" stop-color="#0e2847"/>
+            <stop offset="100%" stop-color="#061220"/>
+          </linearGradient>
+          <linearGradient id="wing" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#00b4d8"/>
+            <stop offset="100%" stop-color="#023e58"/>
+          </linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <!-- Main wings -->
+        <path d="M180 98 L340 90 L480 60 L480 70 L340 105 L180 108 Z" fill="url(#wing)" opacity=".9"/>
+        <path d="M180 98 L340 106 L480 136 L480 126 L340 111 L180 108 Z" fill="url(#wing)" opacity=".7"/>
+        <!-- Fuselage -->
+        <path d="M30 92 Q60 80 120 86 L520 84 Q560 86 570 90 Q560 94 520 96 L120 94 Q60 100 30 92 Z" fill="url(#body)" stroke="#0e4060" stroke-width=".5"/>
+        <!-- Nose cone -->
+        <path d="M520 84 Q560 86 570 90 Q560 94 520 96 L520 84 Z" fill="#1a5070" filter="url(#glow)"/>
+        <!-- Tail fin vertical -->
+        <path d="M95 86 L95 54 Q97 48 103 52 L115 86 Z" fill="#0a2a42" stroke="#0e4060" stroke-width=".5"/>
+        <!-- Tail fin horizontal -->
+        <path d="M80 90 L95 88 L125 72 L128 76 L100 92 L80 94 Z" fill="#0a2a42" opacity=".85"/>
+        <path d="M80 90 L95 92 L125 108 L128 104 L100 90 L80 86 Z" fill="#0a2a42" opacity=".7"/>
+        <!-- Engine pods -->
+        <ellipse cx="310" cy="112" rx="36" ry="8" fill="#061a2e" stroke="#0e4060" stroke-width=".5"/>
+        <ellipse cx="310" cy="68" rx="36" ry="8" fill="#061a2e" stroke="#0e4060" stroke-width=".5"/>
+        <!-- Intake glow -->
+        <circle cx="275" cy="112" r="5" fill="#00e5ff" opacity=".4" filter="url(#glow)"/>
+        <circle cx="275" cy="68" r="5" fill="#00e5ff" opacity=".4" filter="url(#glow)"/>
+        <!-- Exhaust glow -->
+        <ellipse cx="346" cy="112" rx="3" ry="6" fill="#ff6b35" opacity=".6" filter="url(#glow)"/>
+        <ellipse cx="346" cy="68" rx="3" ry="6" fill="#ff6b35" opacity=".6" filter="url(#glow)"/>
+        <!-- Cockpit window -->
+        <path d="M460 86 Q480 83 496 87 Q480 91 460 94 Z" fill="#00e5ff" opacity=".25" filter="url(#glow)"/>
+        <!-- Wing edge highlight -->
+        <line x1="340" y1="90" x2="480" y2="60" stroke="#00e5ff" stroke-width=".5" opacity=".4"/>
+        <!-- Fuselage centerline -->
+        <line x1="60" y1="90" x2="520" y2="90" stroke="#00e5ff" stroke-width=".3" stroke-dasharray="8,12" opacity=".2"/>
+      </svg>
+    </div>
+
+    <div class="brand">AeroForge</div>
+    <div class="tagline">AI-Powered Generative Design — <span>Aerospace</span></div>
+    <p class="desc">Design, simulate and visualize aerospace components with AI-driven structural analysis and real-time 3D rendering.</p>
+
+    <div class="cta-row">
+      <a href="login.html" class="btn btn-primary">Login</a>
+      <a href="register.html" class="btn btn-outline">Register</a>
+    </div>
+
+    <div class="stats-row">
+      <div><div class="stat-val" id="stat-designs">—</div><div class="stat-lbl">Designs Generated</div></div>
+      <div><div class="stat-val">6</div><div class="stat-lbl">Component Types</div></div>
+      <div><div class="stat-val">5</div><div class="stat-lbl">Materials</div></div>
+    </div>
+
+    <div class="hud-dots">
+      <div class="hud-dot green"></div>
+      <div class="hud-dot blue"></div>
+      <div class="hud-dot off"></div>
+      <span class="hud-label">SYS NOMINAL · AI ENGINE READY</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// Stars
+const s = document.getElementById('stars');
+for (let i = 0; i < 100; i++) {
+  const el = document.createElement('div');
+  el.className = 'star';
+  el.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${Math.random()*2+.5}px;height:${Math.random()*2+.5}px;--d:${Math.random()*4+2}s;--dl:${Math.random()*4}s;--op:${Math.random()*.7+.3}`;
+  s.appendChild(el);
+}
+// Fetch live design count
+fetch('/api/stats').then(r=>r.json()).then(d=>{ if(d.count !== undefined) document.getElementById('stat-designs').textContent = d.count; }).catch(()=>{});
+// Redirect if already logged in
+if (localStorage.getItem('af_token')) window.location.href = '/home.html';
+</script>
+</body>
+</html>

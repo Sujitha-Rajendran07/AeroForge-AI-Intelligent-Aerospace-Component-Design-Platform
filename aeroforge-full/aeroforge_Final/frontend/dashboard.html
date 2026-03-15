@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroForge — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+.dash-header{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.dash-stat{background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:18px;text-align:center;}
+.dash-stat-num{font-family:var(--orb);font-size:28px;font-weight:700;color:var(--primary);}
+.dash-stat-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+.filter-row{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.filter-row label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+.filter-row select,.filter-row input{background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 12px;border-radius:3px;outline:none;}
+.designs-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.design-item{background:var(--card);border:1px solid var(--border2);border-radius:4px;overflow:hidden;transition:all .2s;}
+.design-item:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.design-item-header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);}
+.design-zone-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.design-item-name{font-family:var(--orb);font-size:10px;color:var(--primary);letter-spacing:1px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.design-item-score{font-family:var(--orb);font-size:12px;font-weight:700;}
+.design-item-body{padding:14px 16px;}
+.preview-canvas{width:100%;height:110px;background:var(--bg3);border-radius:3px;margin-bottom:12px;display:block;}
+.design-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+.meta-item{background:var(--bg3);border-radius:2px;padding:7px 10px;}
+.meta-key{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;}
+.meta-val{font-family:var(--mono);font-size:11px;color:var(--text);margin-top:2px;}
+.design-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn-icon{font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:6px 12px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;border-radius:3px;transition:var(--trans);}
+.btn-icon:hover{border-color:var(--primary);color:var(--primary);}
+.btn-icon.del{color:var(--danger);}
+.btn-icon.del:hover{border-color:var(--danger);}
+.empty-state{text-align:center;padding:64px 24px;}
+.empty-icon{font-size:48px;margin-bottom:16px;}
+.empty-title{font-family:var(--orb);font-size:12px;color:var(--text3);letter-spacing:3px;margin-bottom:10px;}
+.empty-desc{font-family:var(--raj);color:var(--text2);font-size:13px;}
+.design-date{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;margin-top:4px;}
+@media(max-width:768px){.dash-header{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">LOADING DESIGNS...</div>
+</div>
+
+<div class="page">
+  <div class="page-title">Design Dashboard</div>
+  <div class="page-sub">PERSONAL COMPONENT LIBRARY</div>
+
+  <div class="dash-header">
+    <div class="dash-stat"><div class="dash-stat-num" id="ds-total">—</div><div class="dash-stat-lbl">Total Designs</div></div>
+    <div class="dash-stat"><div class="dash-stat-num" id="ds-avg">—</div><div class="dash-stat-lbl">Avg. Score</div></div>
+    <div class="dash-stat"><div class="dash-stat-num" id="ds-best">—</div><div class="dash-stat-lbl">Best Score</div></div>
+    <div class="dash-stat"><div class="dash-stat-num" id="ds-zones">—</div><div class="dash-stat-lbl">Unique Zones</div></div>
+  </div>
+
+  <div class="card">
+    <div class="filter-row">
+      <label>Filter:</label>
+      <select id="filterZone">
+        <option value="">All Zones</option>
+        <option value="wing">Wing</option>
+        <option value="fuselage">Fuselage</option>
+        <option value="engine">Engine</option>
+        <option value="tail">Tail</option>
+        <option value="landing-gear">Landing Gear</option>
+      </select>
+      <select id="filterSort">
+        <option value="date">Sort: Newest</option>
+        <option value="score-hi">Sort: Score ↑</option>
+        <option value="score-lo">Sort: Score ↓</option>
+        <option value="weight">Sort: Weight</option>
+      </select>
+      <input type="text" id="filterSearch" placeholder="Search by name..." style="min-width:200px;"/>
+      <button class="btn btn-ghost btn-sm" onclick="loadDesigns()">↻ REFRESH</button>
+      <a href="generator.html" class="btn btn-primary btn-sm">+ NEW DESIGN</a>
+    </div>
+    <div id="designsContainer">
+      <div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">NO DESIGNS YET</div><div class="empty-desc">Generate your first aerospace component to see it here.</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+api.requireAuth();
+initNav('dash');
+
+let allDesigns = [];
+const miniRenderers = new Map();
+
+async function loadDesigns() {
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  const res = await api.get('/user-designs');
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  if (res.error) { console.error(res.error); return; }
+  allDesigns = res.designs || [];
+  updateStats();
+  renderDesigns();
+}
+
+function updateStats() {
+  const d = allDesigns;
+  document.getElementById('ds-total').textContent = d.length;
+  if (d.length) {
+    const scores = d.map(x => x.prediction?.overallScore || 0);
+    document.getElementById('ds-avg').textContent  = Math.round(scores.reduce((a,b)=>a+b,0)/d.length);
+    document.getElementById('ds-best').textContent = Math.max(...scores);
+    document.getElementById('ds-zones').textContent = new Set(d.map(x=>x.zone)).size;
+  } else {
+    document.getElementById('ds-avg').textContent = '—';
+    document.getElementById('ds-best').textContent = '—';
+    document.getElementById('ds-zones').textContent = '—';
+  }
+}
+
+function getFiltered() {
+  const zone   = document.getElementById('filterZone').value;
+  const sort   = document.getElementById('filterSort').value;
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+  let list = allDesigns.filter(d => {
+    if (zone && d.zone !== zone) return false;
+    if (search && !d.name.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  if (sort === 'score-hi') list = list.sort((a,b) => (b.prediction?.overallScore||0) - (a.prediction?.overallScore||0));
+  else if (sort === 'score-lo') list = list.sort((a,b) => (a.prediction?.overallScore||0) - (b.prediction?.overallScore||0));
+  else if (sort === 'weight') list = list.sort((a,b) => (a.prediction?.weight||0) - (b.prediction?.weight||0));
+  else list = list.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return list;
+}
+
+function renderDesigns() {
+  // Cleanup old renderers
+  miniRenderers.forEach(r => { try { r.dispose(); } catch(e){} });
+  miniRenderers.clear();
+
+  const list = getFiltered();
+  const container = document.getElementById('designsContainer');
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">NO DESIGNS FOUND</div><div class="empty-desc">Try adjusting your filters.</div></div>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'designs-list';
+
+  list.forEach(design => {
+    const p = design.prediction || {};
+    const scoreColor = (p.overallScore||0) >= 70 ? 'var(--accent)' : (p.overallScore||0) >= 40 ? 'var(--warn)' : 'var(--danger)';
+    const date = design.createdAt ? new Date(design.createdAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '—';
+    const zoneColors = {wing:'#00c8ff',fuselage:'#00ff99',engine:'#ff6b35',tail:'#c084fc','landing-gear':'#ffd60a'};
+    const dotColor = zoneColors[design.zone] || '#00e5ff';
+
+    const card = document.createElement('div');
+    card.className = 'design-item';
+    card.innerHTML = `
+      <div class="design-item-header">
+        <div class="design-zone-dot" style="background:${dotColor};box-shadow:0 0 6px ${dotColor};"></div>
+        <div class="design-item-name" title="${design.name}">${design.name}</div>
+        <div class="design-item-score" style="color:${scoreColor}">${p.overallScore||0}</div>
+      </div>
+      <div class="design-item-body">
+        <canvas class="preview-canvas" id="prev-${design.id}" width="280" height="110"></canvas>
+        <div class="design-meta">
+          <div class="meta-item"><div class="meta-key">Stress</div><div class="meta-val">${p.stress||'—'} MPa</div></div>
+          <div class="meta-item"><div class="meta-key">Weight</div><div class="meta-val">${p.weight||'—'} kg</div></div>
+          <div class="meta-item"><div class="meta-key">Safety</div><div class="meta-val">${p.safetyFactor||'—'}×</div></div>
+          <div class="meta-item"><div class="meta-key">Fatigue</div><div class="meta-val">${p.fatigueCycles ? (p.fatigueCycles/1e6).toFixed(1)+'M' : '—'}</div></div>
+        </div>
+        <div class="design-date">Generated: ${date} · Zone: ${(design.zone||'').toUpperCase()}</div>
+        <div class="design-actions" style="margin-top:10px;">
+          <button class="btn-icon" onclick="viewDesign('${design.id}')">👁 VIEW</button>
+          <button class="btn-icon" onclick="reopenDesign('${design.id}')">↗ REOPEN</button>
+          <button class="btn-icon" onclick="downloadDesign('${design.id}')">⬇ DOWNLOAD</button>
+          <button class="btn-icon del" onclick="deleteDesign('${design.id}', this)">✕ DELETE</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  container.appendChild(grid);
+
+  // Init mini previews after render
+  setTimeout(() => {
+    list.forEach(design => initMiniPreview(design));
+  }, 50);
+}
+
+function initMiniPreview(design) {
+  const canvas = document.getElementById(`prev-${design.id}`);
+  if (!canvas) return;
+  const W = canvas.offsetWidth || 280, H = 110;
+  canvas.width = W; canvas.height = H;
+
+  const s = new THREE.Scene(); s.background = new THREE.Color(0x040a10);
+  const cam = new THREE.PerspectiveCamera(45, W/H, 0.1, 50);
+  cam.position.set(2.5, 1.5, 3.5); cam.lookAt(0, 0, 0);
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true });
+  r.setSize(W, H);
+  s.add(new THREE.AmbientLight(0x102030, 0.8));
+  const dl = new THREE.DirectionalLight(0x88ccff, 1.3); dl.position.set(4, 6, 4); s.add(dl);
+
+  const p = design.params || {};
+  const color = parseInt((design.color||'#00e5ff').replace('#',''), 16);
+  const L = Math.min((p.length||400)/150, 2.5), Ww = Math.min((p.width||100)/150, 1.5), T = Math.min((p.thickness||5)/15, 0.8);
+  let geo;
+  if (p.type === 'bulkhead') geo = new THREE.TorusGeometry(Ww/2, T/3, 8, 20);
+  else if (p.type === 'engine-mount') geo = new THREE.CylinderGeometry(Ww/2, Ww/2*0.85, T*1.2, 14, 1, true);
+  else if (p.type === 'wing-rib') geo = new THREE.BoxGeometry(L, T*0.8, Ww*0.3);
+  else geo = new THREE.BoxGeometry(L, T, Ww);
+
+  const mat = new THREE.MeshPhongMaterial({ color, shininess: 70 });
+  const mesh = new THREE.Mesh(geo, mat);
+  s.add(mesh);
+  miniRenderers.set(design.id, r);
+
+  let raf;
+  function loop() { raf = requestAnimationFrame(loop); mesh.rotation.y += 0.014; r.render(s, cam); }
+  loop();
+}
+
+function viewDesign(id) {
+  const d = allDesigns.find(x => x.id === id);
+  if (!d) return;
+  localStorage.setItem('af_last_component', JSON.stringify(d));
+  window.location.href = 'aircraft-viewer.html';
+}
+
+function reopenDesign(id) {
+  const d = allDesigns.find(x => x.id === id);
+  if (!d) return;
+  localStorage.setItem('af_compare_base', JSON.stringify(d));
+  window.location.href = 'generator.html';
+}
+
+function downloadDesign(id) {
+  const d = allDesigns.find(x => x.id === id);
+  if (!d) return;
+  const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `${d.name.replace(/\s+/g,'-').toLowerCase()}-${d.id.slice(0,8)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+async function deleteDesign(id, btn) {
+  if (!confirm('Delete this design? This cannot be undone.')) return;
+  btn.textContent = 'DELETING...'; btn.disabled = true;
+  const res = await api.del(`/designs/${id}`);
+  if (res.error) { alert('Delete failed: ' + res.error); btn.textContent = '✕ DELETE'; btn.disabled = false; return; }
+  allDesigns = allDesigns.filter(x => x.id !== id);
+  updateStats();
+  renderDesigns();
+}
+
+// Filter events
+document.getElementById('filterZone').addEventListener('change', renderDesigns);
+document.getElementById('filterSort').addEventListener('change', renderDesigns);
+document.getElementById('filterSearch').addEventListener('input', renderDesigns);
+
+loadDesigns();
+</script>
+</body>
+</html>

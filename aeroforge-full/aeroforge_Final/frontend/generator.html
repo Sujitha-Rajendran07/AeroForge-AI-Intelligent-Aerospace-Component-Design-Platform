@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroForge — Component Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+.gen-layout{display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start;}
+.input-panel{position:sticky;top:72px;}
+.section-divider{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;padding:10px 0 6px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+.dim-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.aero-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.viewer-panel .card{margin-bottom:16px;}
+#viewer3d{width:100%;height:380px;}
+.result-metrics{display:none;}
+.result-metrics.show{display:block;}
+.score-ring{width:90px;height:90px;position:relative;flex-shrink:0;}
+.score-ring svg{transform:rotate(-90deg);}
+.score-ring .score-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--orb);font-size:22px;font-weight:700;color:var(--primary);}
+.result-header{display:flex;align-items:center;gap:20px;margin-bottom:18px;}
+.result-name{font-family:var(--orb);font-size:13px;color:var(--primary);letter-spacing:2px;}
+.result-zone{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+.ai-tag{font-family:var(--mono);font-size:9px;color:var(--accent);background:rgba(57,255,20,.1);border:1px solid rgba(57,255,20,.25);padding:2px 8px;border-radius:2px;margin-top:6px;display:inline-block;}
+.prompt-row{display:flex;gap:10px;}
+.prompt-row textarea{flex:1;}
+.save-strip{display:flex;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+
+/* ── CAD / 3D View Tabs ─────────────────────────────── */
+.view-tabs{display:flex;gap:0;border-bottom:1px solid var(--border2);margin-bottom:0;}
+.view-tab{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:10px 18px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:var(--trans);user-select:none;}
+.view-tab:hover{color:var(--text2);}
+.view-tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+.view-pane{display:none;}.view-pane.active{display:block;}
+
+/* ── CAD Viewer ──────────────────────────────────────── */
+.cad-viewer-wrap{position:relative;background:#020a12;border-top:none;}
+#cadCanvas{width:100%;height:380px;display:block;}
+.cad-overlay{position:absolute;inset:0;pointer-events:none;}
+.cad-scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.6),transparent);box-shadow:0 0 8px rgba(0,229,255,.5);opacity:0;transition:opacity .3s;}
+.cad-hud{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:5px;}
+.cad-hud-badge{font-family:var(--mono);font-size:8px;letter-spacing:2px;padding:3px 9px;background:rgba(2,10,18,.88);border:1px solid rgba(0,229,255,.25);color:var(--primary);border-radius:2px;}
+.cad-mode-badge{position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:8px;letter-spacing:2px;padding:3px 9px;background:rgba(2,10,18,.88);border:1px solid var(--border2);color:var(--text3);border-radius:2px;}
+
+/* ── CAD Data Panel ──────────────────────────────────── */
+.cad-data-panel{display:none;padding:0;}
+.cad-data-panel.show{display:block;}
+.cad-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+.cad-section{background:var(--bg3);border:1px solid var(--border);border-radius:2px;padding:12px;}
+.cad-section-title{font-family:var(--mono);font-size:8px;color:var(--primary);letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);}
+.cad-kv{display:flex;justify-content:space-between;align-items:flex-start;padding:3px 0;border-bottom:1px solid rgba(13,32,53,.5);gap:8px;}
+.cad-kv:last-child{border:none;}
+.cad-k{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;flex-shrink:0;}
+.cad-v{font-family:var(--mono);font-size:9px;color:var(--text);text-align:right;word-break:break-all;}
+.cad-v.hi{color:var(--primary);}
+.cad-v.warn{color:var(--warn);}
+.fastener-row{font-family:var(--mono);font-size:8px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(13,32,53,.5);}
+.fastener-row:last-child{border:none;}
+.gdt-row{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(13,32,53,.5);}
+.gdt-row:last-child{border:none;}
+.gdt-sym{font-size:13px;width:18px;flex-shrink:0;}
+.gdt-feat{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;flex:1;}
+.gdt-val{font-family:var(--mono);font-size:8px;color:var(--accent);}
+.cad-controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.cad-ctrl-btn{font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;border-radius:2px;transition:var(--trans);}
+.cad-ctrl-btn:hover{border-color:var(--primary);color:var(--primary);}
+.cad-ctrl-btn.on{border-color:var(--primary);color:var(--primary);background:var(--pri-dim);}
+.no-cad-msg{font-family:var(--mono);font-size:10px;color:var(--text3);text-align:center;padding:40px 20px;letter-spacing:2px;}
+
+/* ── Component Scanner ───────────────────────────────── */
+.scan-progress-wrap{margin-top:8px;padding:0 14px 12px;}
+.scan-label{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:2px;margin-bottom:5px;}
+.scan-bar-outer{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.scan-bar-inner{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--primary));transition:width .1s linear;}
+.scan-parts{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;padding:0 14px;}
+.scan-part{font-family:var(--mono);font-size:8px;letter-spacing:1px;padding:3px 8px;border:1px solid var(--border);color:var(--text3);border-radius:2px;cursor:pointer;transition:var(--trans);}
+.scan-part:hover,.scan-part.active{border-color:var(--primary);color:var(--primary);background:var(--pri-dim);}
+
+@media(max-width:960px){.gen-layout{grid-template-columns:1fr;}.cad-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">GENERATING COMPONENT...</div>
+</div>
+
+<div class="page">
+  <div class="page-title">Component Generator</div>
+  <div class="page-sub">AI-DRIVEN GENERATIVE AEROSPACE DESIGN</div>
+
+  <div class="gen-layout">
+    <!-- INPUT PANEL -->
+    <div class="input-panel">
+      <div class="card">
+        <div class="card-title">Design Parameters</div>
+
+        <div class="section-divider">Component</div>
+        <div class="form-group">
+          <label class="form-label">Component Type</label>
+          <select class="form-control" id="compType">
+            <option value="wing-rib">Wing Rib</option>
+            <option value="bracket">Bracket</option>
+            <option value="engine-mount">Engine Mount</option>
+            <option value="panel">Skin Panel</option>
+            <option value="stringer">Stringer</option>
+            <option value="bulkhead">Bulkhead</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Shape Type</label>
+          <select class="form-control" id="shapeType">
+            <option value="elliptical">Elliptical</option>
+            <option value="swept">Swept</option>
+            <option value="delta">Delta</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Material</label>
+          <select class="form-control" id="material">
+            <option value="aluminum-7075">Aluminum 7075-T6</option>
+            <option value="titanium-ti6al4v">Titanium Ti-6Al-4V</option>
+            <option value="carbon-fiber">Carbon Fiber Composite</option>
+            <option value="inconel-718">Inconel 718</option>
+            <option value="steel-4340">Steel 4340</option>
+          </select>
+        </div>
+
+        <div class="section-divider">Dimensions (mm)</div>
+        <div class="dim-grid">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Length</label>
+            <input type="number" class="form-control" id="length" value="400" min="1" max="10000"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Width</label>
+            <input type="number" class="form-control" id="width" value="120" min="1" max="5000"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Thickness</label>
+            <input type="number" class="form-control" id="thickness" value="5" min="0.1" max="200" step="0.1"/>
+          </div>
+        </div>
+
+        <div class="section-divider" style="margin-top:14px;">Aerodynamic Inputs</div>
+        <div class="aero-grid">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Airspeed (m/s)</label>
+            <input type="number" class="form-control" id="airspeed" value="250" min="1"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Pressure (kPa)</label>
+            <input type="number" class="form-control" id="pressure" value="101" min="1"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Load (kN)</label>
+            <input type="number" class="form-control" id="load" value="25" min="0.01" max="10000" step="0.1"/>
+          </div>
+        </div>
+
+        <div class="section-divider" style="margin-top:14px;">AI Prompt</div>
+        <div class="form-group">
+          <label class="form-label">Describe your design</label>
+          <div class="prompt-row">
+            <textarea class="form-control" id="promptText" placeholder="e.g. lightweight titanium wing rib for supersonic fighter aircraft" rows="3"></textarea>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <button class="btn btn-primary" id="generateBtn" style="flex:1">⚙ GENERATE</button>
+          <button class="btn btn-ghost" id="promptBtn">AI PROMPT</button>
+        </div>
+        <div class="alert alert-error" id="genErr" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- OUTPUT PANEL -->
+    <div class="viewer-panel">
+      <div class="card" style="padding-bottom:0;">
+        <div class="card-title" style="margin-bottom:0;">Component Visualization</div>
+        <!-- Tabs -->
+        <div class="view-tabs">
+          <div class="view-tab active" id="tab3d"  onclick="switchTab('3d')">⬡ 3D MODEL</div>
+          <div class="view-tab"        id="tabCad" onclick="switchTab('cad')">⊞ CAD VIEW</div>
+        </div>
+        <!-- 3D Pane -->
+        <div class="view-pane active" id="pane3d">
+          <div class="viewer-wrap">
+            <canvas id="viewer3d"></canvas>
+            <div class="viewer-label" id="viewerLabel">AWAITING GENERATION</div>
+          </div>
+        </div>
+        <!-- CAD Pane -->
+        <div class="view-pane" id="paneCad">
+          <div class="cad-viewer-wrap">
+            <canvas id="cadCanvas"></canvas>
+            <div class="cad-overlay">
+              <div class="cad-scan-line" id="cadScanLine"></div>
+            </div>
+            <div class="cad-hud">
+              <div class="cad-hud-badge" id="cadHudTitle">CAD VIEWER</div>
+              <div class="cad-hud-badge" id="cadHudDims">—</div>
+              <div class="cad-hud-badge" id="cadFps">— FPS</div>
+            </div>
+            <div class="cad-mode-badge" id="cadModeBadge">NO MODEL</div>
+          </div>
+          <div class="scan-progress-wrap" id="scanProgressWrap" style="display:none;">
+            <div class="scan-label">COMPONENT SCAN</div>
+            <div class="scan-bar-outer"><div class="scan-bar-inner" id="scanBar"></div></div>
+          </div>
+          <div class="scan-parts" id="scanParts"></div>
+          <div class="cad-controls" style="padding:8px 14px 12px;">
+            <button class="cad-ctrl-btn on" id="cadBtnWire"   onclick="cadToggle('wire')">WIREFRAME</button>
+            <button class="cad-ctrl-btn on" id="cadBtnSolid"  onclick="cadToggle('solid')">SOLID</button>
+            <button class="cad-ctrl-btn on" id="cadBtnRotate" onclick="cadToggle('rotate')">AUTO-ROTATE</button>
+            <button class="cad-ctrl-btn"    id="cadBtnScan"   onclick="runComponentScan()">⟳ SCAN</button>
+            <button class="cad-ctrl-btn on" id="cadBtnFast"   onclick="cadToggle('fasteners')">FASTENERS</button>
+            <button class="cad-ctrl-btn on" id="cadBtnHoles"  onclick="cadToggle('holes')">LIGHTHOLES</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CAD Data panel (shown when CAD tab active) -->
+      <div class="card cad-data-panel" id="cadDataPanel">
+        <div class="card-title">CAD / Engineering Data</div>
+        <div id="cadDataInner"><div class="no-cad-msg">GENERATE A COMPONENT TO VIEW CAD DATA</div></div>
+      </div>
+
+      <div class="card result-metrics" id="resultPanel">
+        <div class="card-title">Structural Analysis Results</div>
+        <div class="result-header">
+          <div class="score-ring">
+            <svg viewBox="0 0 90 90" width="90" height="90">
+              <circle cx="45" cy="45" r="38" fill="none" stroke="#0d2035" stroke-width="7"/>
+              <circle cx="45" cy="45" r="38" fill="none" stroke="#00e5ff" stroke-width="7"
+                stroke-dasharray="238.76" stroke-dashoffset="238.76" id="scoreCircle"
+                stroke-linecap="round" style="transition:stroke-dashoffset 1s ease"/>
+            </svg>
+            <div class="score-num" id="scoreNum">—</div>
+          </div>
+          <div>
+            <div class="result-name" id="compName">—</div>
+            <div class="result-zone" id="compZone">—</div>
+            <div class="ai-tag" id="aiTag"></div>
+          </div>
+        </div>
+
+        <div class="metrics-grid" id="metricsGrid"></div>
+
+        <div style="margin-top:16px;">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;margin-bottom:6px;">AERODYNAMIC SCORE</div>
+          <div class="score-bar-wrap"><div class="score-bar" id="aeroBar" style="width:0%"></div></div>
+        </div>
+        <div style="margin-top:12px;">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;margin-bottom:6px;">MATERIAL EFFICIENCY</div>
+          <div class="score-bar-wrap"><div class="score-bar" id="matBar" style="width:0%;background:linear-gradient(90deg,var(--warn),var(--accent));"></div></div>
+        </div>
+        <div style="margin-top:12px;">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;margin-bottom:6px;">STRUCTURAL INTEGRITY</div>
+          <div class="score-bar-wrap"><div class="score-bar" id="structBar" style="width:0%;background:linear-gradient(90deg,var(--danger),var(--warn),var(--accent));"></div></div>
+        </div>
+
+        <div class="save-strip">
+          <button class="btn btn-primary btn-sm" id="saveBtn">💾 SAVE DESIGN</button>
+          <button class="btn btn-ghost btn-sm" id="viewAircraftBtn">✈ VIEW IN AIRCRAFT</button>
+          <button class="btn btn-ghost btn-sm" id="compareBtn">📊 COMPARE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+api.requireAuth();
+initNav('gen');
+
+let currentComponent = null;
+let scene, camera, renderer, mesh, animFrame;
+
+function initViewer() {
+  const canvas = document.getElementById('viewer3d');
+  const W = canvas.offsetWidth || 600, H = 380;
+  canvas.width = W; canvas.height = H;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x060d17);
+  scene.fog = new THREE.Fog(0x060d17, 20, 80);
+
+  camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 100);
+  camera.position.set(4, 2.5, 6);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(W, H);
+  renderer.shadowMap.enabled = true;
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0x102030, 0.8));
+  const dir = new THREE.DirectionalLight(0x00e5ff, 1.2);
+  dir.position.set(5, 8, 6);
+  dir.castShadow = true;
+  scene.add(dir);
+  const back = new THREE.DirectionalLight(0x39ff14, 0.3);
+  back.position.set(-5, -3, -4);
+  scene.add(back);
+
+  // Grid
+  const grid = new THREE.GridHelper(20, 20, 0x0d2035, 0x0a1828);
+  grid.position.y = -1.5;
+  scene.add(grid);
+
+  // Axes
+  const axMat = c => new THREE.LineBasicMaterial({ color: c });
+  const axGeo = (a, b) => { const g = new THREE.BufferGeometry(); g.setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]); return g; };
+  scene.add(new THREE.Line(axGeo([0,0,0],[2,0,0]), axMat(0xff4444)));
+  scene.add(new THREE.Line(axGeo([0,0,0],[0,2,0]), axMat(0x44ff44)));
+  scene.add(new THREE.Line(axGeo([0,0,0],[0,0,2]), axMat(0x4444ff)));
+
+  // Default placeholder
+  renderPlaceholder();
+  animate();
+}
+
+function renderPlaceholder() {
+  if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
+  const geo = new THREE.BoxGeometry(2, 0.3, 1);
+  const mat = new THREE.MeshPhongMaterial({ color: 0x0e2847, wireframe: true, opacity: 0.4, transparent: true });
+  mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+}
+
+function renderComponent(comp) {
+  if (mesh) { scene.remove(mesh); if(mesh.geometry) mesh.geometry.dispose(); if(mesh.material) mesh.material.dispose(); }
+  const p = comp.params;
+  const color = parseInt(comp.color.replace('#',''), 16);
+
+  // Scale to scene units
+  const L = Math.min(p.length / 100, 5);
+  const W = Math.min(p.width / 100, 3);
+  const T = Math.min(p.thickness / 10, 1.5);
+
+  let geo;
+  const type = p.type;
+  if (type === 'wing-rib') {
+    // I-beam shape
+    const shape = new THREE.Shape();
+    const fw = W * 0.3, ft = T * 0.18, wt = T * 0.45 * 0.15;
+    shape.moveTo(-fw/2, -T/2); shape.lineTo(fw/2, -T/2); shape.lineTo(fw/2, -T/2+ft);
+    shape.lineTo(wt/2, -T/2+ft); shape.lineTo(wt/2, T/2-ft); shape.lineTo(fw/2, T/2-ft);
+    shape.lineTo(fw/2, T/2); shape.lineTo(-fw/2, T/2); shape.lineTo(-fw/2, T/2-ft);
+    shape.lineTo(-wt/2, T/2-ft); shape.lineTo(-wt/2, -T/2+ft); shape.lineTo(-fw/2, -T/2+ft);
+    shape.closePath();
+    geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
+    geo.translate(-L/2, -T/2, 0);
+  } else if (type === 'bulkhead') {
+    const outer = new THREE.Shape(); outer.absarc(0, 0, W/2, 0, Math.PI*2, false);
+    const hole  = new THREE.Path(); hole.absarc(0, 0, W/3, 0, Math.PI*2, true);
+    outer.holes.push(hole);
+    geo = new THREE.ExtrudeGeometry(outer, { depth: T, bevelEnabled: false });
+    geo.translate(0, 0, -T/2);
+  } else if (type === 'panel') {
+    geo = new THREE.BoxGeometry(L, T * 0.5, W);
+  } else if (type === 'engine-mount') {
+    const path = new THREE.Shape(); path.absarc(0, 0, W/2, 0, Math.PI*2, false);
+    const inner = new THREE.Path(); inner.absarc(0, 0, W/2 - T*0.2, 0, Math.PI*2, true);
+    path.holes.push(inner);
+    geo = new THREE.ExtrudeGeometry(path, { depth: T*1.5, bevelEnabled: false });
+    geo.translate(0, 0, -T*0.75);
+  } else if (type === 'stringer') {
+    const shape = new THREE.Shape();
+    const h = T, ww = W * 0.35, thk = T * 0.15;
+    shape.moveTo(0, 0); shape.lineTo(ww, 0); shape.lineTo(ww, thk);
+    shape.lineTo(thk, thk); shape.lineTo(thk, h); shape.lineTo(0, h); shape.closePath();
+    geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
+    geo.translate(-L/2, -h/2, 0);
+  } else {
+    // bracket / default
+    const shape = new THREE.Shape();
+    const h = T, fw2 = W * 0.8, thk2 = T * 0.22;
+    shape.moveTo(-fw2/2, -h/2); shape.lineTo(fw2/2, -h/2); shape.lineTo(fw2/2, -h/2+thk2);
+    shape.lineTo(thk2/2, -h/2+thk2); shape.lineTo(thk2/2, h/2); shape.lineTo(-thk2/2, h/2);
+    shape.lineTo(-thk2/2, -h/2+thk2); shape.lineTo(-fw2/2, -h/2+thk2); shape.closePath();
+    geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
+    geo.translate(-L/2, -T/2, 0);
+  }
+
+  const mat = new THREE.MeshPhongMaterial({ color, shininess: 80, specular: 0x223344 });
+  mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  scene.add(mesh);
+
+  // Wireframe overlay
+  const wf = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, opacity: 0.08, transparent: true }));
+  mesh.add(wf);
+
+  document.getElementById('viewerLabel').textContent = comp.name.toUpperCase();
+}
+
+let isDragging = false, prevX = 0, prevY = 0, rotX = 0, rotY = 0;
+function setupOrbit() {
+  const canvas = document.getElementById('viewer3d');
+  canvas.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+  window.addEventListener('mouseup', () => isDragging = false);
+  window.addEventListener('mousemove', e => {
+    if (!isDragging || !mesh) return;
+    rotY += (e.clientX - prevX) * 0.01;
+    rotX += (e.clientY - prevY) * 0.01;
+    prevX = e.clientX; prevY = e.clientY;
+  });
+  canvas.addEventListener('wheel', e => { camera.position.multiplyScalar(1 + e.deltaY * 0.001); });
+}
+
+function animate() {
+  animFrame = requestAnimationFrame(animate);
+  if (mesh) {
+    mesh.rotation.y = rotY + Date.now() * 0.0004;
+    mesh.rotation.x = rotX;
+  }
+  renderer.render(scene, camera);
+}
+
+function showResults(comp) {
+  currentComponent = comp;
+  const p = comp.prediction;
+  const panel = document.getElementById('resultPanel');
+  panel.classList.add('show');
+
+  document.getElementById('compName').textContent = comp.name;
+  document.getElementById('compZone').textContent = `ZONE: ${comp.zone.toUpperCase()} · ${comp.params.type.toUpperCase()}`;
+  document.getElementById('aiTag').textContent = p.source === 'ai' ? '● AI GENERATED' : '● LOCAL ENGINE';
+
+  const score = p.overallScore;
+  document.getElementById('scoreNum').textContent = score;
+  const circ = 2 * Math.PI * 38;
+  document.getElementById('scoreCircle').style.strokeDashoffset = circ - (circ * score / 100);
+  document.getElementById('scoreCircle').style.stroke = score >= 70 ? '#39ff14' : score >= 40 ? '#ff9d00' : '#ff1744';
+
+  const sf = p.safetyFactor;
+  const sfBadge = sf >= 3 ? 'badge-ok' : sf >= 1.5 ? 'badge-warn' : 'badge-danger';
+  document.getElementById('metricsGrid').innerHTML = `
+    <div class="metric-item"><div class="metric-val">${p.stress}</div><div class="metric-unit">MPa</div><div class="metric-lbl">Stress</div></div>
+    <div class="metric-item"><div class="metric-val">${p.weight}</div><div class="metric-unit">kg</div><div class="metric-lbl">Weight</div></div>
+    <div class="metric-item"><div class="metric-val ${sfBadge.replace('badge-','metric-val-')}"><span class="badge ${sfBadge}">${sf}×</span></div><div class="metric-lbl">Safety Factor</div></div>
+    <div class="metric-item"><div class="metric-val">${(p.fatigueCycles/1e6).toFixed(1)}M</div><div class="metric-unit">cycles</div><div class="metric-lbl">Fatigue Life</div></div>
+    <div class="metric-item"><div class="metric-val">${p.thermalLimit}°</div><div class="metric-unit">C</div><div class="metric-lbl">Thermal Limit</div></div>
+    <div class="metric-item"><div class="metric-val">${score}</div><div class="metric-unit">/100</div><div class="metric-lbl">Overall Score</div></div>
+  `;
+
+  setTimeout(() => {
+    document.getElementById('aeroBar').style.width = score + '%';
+    const matEff = Math.min(100, Math.round((p.safetyFactor / 4) * 100));
+    document.getElementById('matBar').style.width = matEff + '%';
+    const structInt = Math.min(100, Math.round((1 - p.stress / 1000) * 100));
+    document.getElementById('structBar').style.width = Math.max(0, structInt) + '%';
+  }, 100);
+}
+
+// Generate from parameters
+document.getElementById('generateBtn').addEventListener('click', async () => {
+  document.getElementById('genErr').classList.remove('show');
+  const params = {
+    type: document.getElementById('compType').value,
+    material: document.getElementById('material').value,
+    length: +document.getElementById('length').value,
+    width: +document.getElementById('width').value,
+    thickness: +document.getElementById('thickness').value,
+    load: +document.getElementById('load').value,
+  };
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  const res = await api.post('/generate-component', params);
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  if (res.error) { document.getElementById('genErr').textContent = res.error; document.getElementById('genErr').classList.add('show'); return; }
+  renderComponent(res.component);
+  showResults(res.component);
+  afterGeneration(res.component);
+});
+
+// Generate from prompt
+document.getElementById('promptBtn').addEventListener('click', async () => {
+  const prompt = document.getElementById('promptText').value.trim();
+  if (prompt.length < 3) { document.getElementById('genErr').textContent = 'Enter a prompt (min 3 chars)'; document.getElementById('genErr').classList.add('show'); return; }
+  document.getElementById('genErr').classList.remove('show');
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  const res = await api.post('/predict/prompt', { prompt });
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  if (res.error) { document.getElementById('genErr').textContent = res.error; document.getElementById('genErr').classList.add('show'); return; }
+  renderComponent(res.component);
+  showResults(res.component);
+  afterGeneration(res.component);
+});
+
+// Save
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  if (!currentComponent) return;
+  const res = await api.post('/designs', currentComponent);
+  if (res.error && res.error !== 'Design already exists') { alert('Save failed: ' + res.error); return; }
+  document.getElementById('saveBtn').textContent = '✓ SAVED';
+  document.getElementById('saveBtn').disabled = true;
+});
+
+document.getElementById('viewAircraftBtn').addEventListener('click', () => {
+  if (currentComponent) localStorage.setItem('af_last_component', JSON.stringify(currentComponent));
+  window.location.href = 'aircraft-viewer.html';
+});
+
+document.getElementById('compareBtn').addEventListener('click', () => {
+  if (currentComponent) localStorage.setItem('af_compare_base', JSON.stringify(currentComponent));
+  window.location.href = 'comparison.html';
+});
+
+initViewer();
+setupOrbit();
+
+// ═══════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════
+let activeTab = '3d';
+function switchTab(t) {
+  activeTab = t;
+  document.getElementById('tab3d').classList.toggle('active', t === '3d');
+  document.getElementById('tabCad').classList.toggle('active', t === 'cad');
+  document.getElementById('pane3d').classList.toggle('active', t === '3d');
+  document.getElementById('paneCad').classList.toggle('active', t === 'cad');
+  document.getElementById('cadDataPanel').classList.toggle('show', t === 'cad');
+  if (t === 'cad' && currentComponent && !cadRenderer) initCadViewer();
+  if (t === 'cad' && cadRenderer) resizeCad();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CAD 3D VIEWER
+// ═══════════════════════════════════════════════════════
+let cadScene, cadCamera, cadRenderer, cadAnimFrame;
+let cadMeshSolid, cadMeshWire, cadFastenerGroup, cadHoleGroup, cadDimGroup;
+let cadSolidOn = true, cadWireOn = true, cadAutoRot = true, cadFastOn = true, cadHolesOn = true;
+let cadDragL = false, cadPX = 0, cadPY = 0, cadRotX = 0, cadRotY = 0;
+let cadLastT = 0, cadFF = 0, cadFE = 0;
+
+function initCadViewer() {
+  const canvas = document.getElementById('cadCanvas');
+  const wrap   = canvas.parentElement;
+  const W = wrap.clientWidth || 600, H = 380;
+
+  cadScene    = new THREE.Scene();
+  cadScene.background = new THREE.Color(0x020a12);
+  cadScene.fog = new THREE.Fog(0x020a12, 30, 80);
+
+  cadCamera   = new THREE.PerspectiveCamera(45, W / H, 0.1, 200);
+  cadCamera.position.set(5, 3.5, 7);
+  cadCamera.lookAt(0, 0, 0);
+
+  cadRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  cadRenderer.setSize(W, H);
+  cadRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  cadRenderer.shadowMap.enabled = true;
+  cadRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  cadRenderer.toneMappingExposure = 1.1;
+
+  // Lights — colder, more technical feel
+  cadScene.add(new THREE.AmbientLight(0x0a1520, 0.9));
+  const key = new THREE.DirectionalLight(0xaad4ff, 1.8);
+  key.position.set(6, 10, 8); key.castShadow = true;
+  key.shadow.mapSize.width = key.shadow.mapSize.height = 1024;
+  cadScene.add(key);
+  const fill = new THREE.DirectionalLight(0x39ff14, 0.25);
+  fill.position.set(-6, -4, -5); cadScene.add(fill);
+  const rim = new THREE.DirectionalLight(0x00e5ff, 0.4);
+  rim.position.set(0, 5, -8); cadScene.add(rim);
+
+  // Technical grid
+  const grid = new THREE.GridHelper(30, 30, 0x0a1e30, 0x071422);
+  grid.position.y = -2; cadScene.add(grid);
+
+  // Axis indicators (small, at origin)
+  const al = 1.5;
+  const axGeo = (a, b) => { const g = new THREE.BufferGeometry(); g.setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]); return g; };
+  cadScene.add(new THREE.Line(axGeo([0,0,0],[al,0,0]), new THREE.LineBasicMaterial({color:0xff3333})));
+  cadScene.add(new THREE.Line(axGeo([0,0,0],[0,al,0]), new THREE.LineBasicMaterial({color:0x33ff33})));
+  cadScene.add(new THREE.Line(axGeo([0,0,0],[0,0,al]), new THREE.LineBasicMaterial({color:0x3377ff})));
+
+  // Orbit
+  canvas.addEventListener('mousedown', e => { cadDragL = true; cadPX = e.clientX; cadPY = e.clientY; cadAutoRot = false; document.getElementById('cadBtnRotate').classList.remove('on'); });
+  window.addEventListener('mouseup',   () => cadDragL = false);
+  window.addEventListener('mousemove', e => {
+    if (!cadDragL) return;
+    cadRotY += (e.clientX - cadPX) * 0.012;
+    cadRotX += (e.clientY - cadPY) * 0.009;
+    cadRotX = Math.max(-1.2, Math.min(1.2, cadRotX));
+    cadPX = e.clientX; cadPY = e.clientY;
+  });
+  canvas.addEventListener('wheel', e => { cadCamera.position.multiplyScalar(1 + e.deltaY * 0.001); });
+  canvas.addEventListener('touchstart', e => { cadDragL = true; cadPX = e.touches[0].clientX; cadPY = e.touches[0].clientY; cadAutoRot = false; });
+  canvas.addEventListener('touchend', () => cadDragL = false);
+  canvas.addEventListener('touchmove', e => {
+    if (!cadDragL) return;
+    cadRotY += (e.touches[0].clientX - cadPX) * 0.012;
+    cadPX = e.touches[0].clientX; cadPY = e.touches[0].clientY;
+    e.preventDefault();
+  }, { passive: false });
+
+  if (currentComponent) buildCadMesh(currentComponent);
+
+  cadAnimFrame = requestAnimationFrame(cadAnimate);
+  window.addEventListener('resize', resizeCad);
+}
+
+function resizeCad() {
+  if (!cadRenderer) return;
+  const wrap = document.getElementById('cadCanvas').parentElement;
+  const W = wrap.clientWidth || 600, H = 380;
+  cadRenderer.setSize(W, H);
+  cadCamera.aspect = W / H;
+  cadCamera.updateProjectionMatrix();
+}
+
+function cadAnimate() {
+  cadAnimFrame = requestAnimationFrame(cadAnimate);
+  const now = performance.now();
+  const dt  = (now - (cadLastT || now)) / 1000;
+  cadLastT  = now;
+
+  cadFF++; cadFE += dt;
+  if (cadFE >= 0.5) {
+    document.getElementById('cadFps').textContent = Math.round(cadFF / cadFE) + ' FPS';
+    cadFF = 0; cadFE = 0;
+  }
+
+  const root = cadScene.getObjectByName('cadRoot');
+  if (root) {
+    if (cadAutoRot) cadRotY += dt * 0.45;
+    root.rotation.y = cadRotY;
+    root.rotation.x = cadRotX;
+  }
+  cadRenderer.render(cadScene, cadCamera);
+}
+
+// ── Build CAD mesh from component data ─────────────────
+function buildCadMesh(comp) {
+  if (!cadScene) return;
+  // Clear old root
+  const old = cadScene.getObjectByName('cadRoot');
+  if (old) cadScene.remove(old);
+
+  const root = new THREE.Group(); root.name = 'cadRoot';
+  cadScene.add(root);
+
+  const p = comp.params;
+  const color = parseInt((comp.color || '#00c8ff').replace('#',''), 16);
+  const L = Math.min(p.length / 100, 5);
+  const W = Math.min(p.width  / 100, 3);
+  const T = Math.min(p.thickness / 10, 1.5);
+
+  // ── Solid geometry (same approach as regular viewer) ──
+  let geo = buildCompGeo(p, L, W, T);
+
+  const solidMat = new THREE.MeshPhongMaterial({ color, shininess: 90, specular: 0x224455, opacity: 0.85, transparent: true });
+  cadMeshSolid = new THREE.Mesh(geo, solidMat);
+  cadMeshSolid.name = 'solid'; cadMeshSolid.castShadow = true;
+  root.add(cadMeshSolid);
+
+  // ── Wireframe overlay ──
+  const wireMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true, opacity: 0.45, transparent: true });
+  cadMeshWire = new THREE.Mesh(geo, wireMat);
+  cadMeshWire.name = 'wire';
+  root.add(cadMeshWire);
+
+  // ── Fastener markers ──
+  cadFastenerGroup = new THREE.Group(); cadFastenerGroup.name = 'fasteners';
+  const fastMat = new THREE.MeshBasicMaterial({ color: 0xffd60a });
+  const fastGeo = new THREE.SphereGeometry(0.035, 8, 8);
+  const cad = comp.cad;
+  if (cad && cad.geometry && cad.geometry.fasteners) {
+    cad.geometry.fasteners.forEach(f => {
+      const fm = new THREE.Mesh(fastGeo, fastMat);
+      // Map fastener mm coords to scene units
+      fm.position.set((f.x / p.length) * L - L/2, T/2 + 0.04, (f.y / p.width) * W - W/2);
+      cadFastenerGroup.add(fm);
+    });
+  } else {
+    // Generate generic fastener row
+    const cols = Math.max(3, Math.round(L / 0.3));
+    for (let i = 0; i < cols; i++) {
+      const fm = new THREE.Mesh(fastGeo, fastMat);
+      fm.position.set(-L/2 + 0.12 + i * (L - 0.24) / Math.max(cols-1, 1), T/2 + 0.04, 0);
+      cadFastenerGroup.add(fm);
+    }
+  }
+  root.add(cadFastenerGroup);
+
+  // ── Lightening hole indicators ──
+  cadHoleGroup = new THREE.Group(); cadHoleGroup.name = 'holes';
+  const holeMat = new THREE.MeshBasicMaterial({ color: 0x39ff14, wireframe: true });
+  if (cad && cad.geometry && cad.geometry.lightHoles && cad.geometry.lightHoles.length) {
+    cad.geometry.lightHoles.forEach(h => {
+      const hGeo = h.type === 'ELLIPSE'
+        ? new THREE.SphereGeometry(h.a / (p.length / L), 10, 10)
+        : new THREE.SphereGeometry(h.r / (p.width / W), 10, 10);
+      const hm = new THREE.Mesh(hGeo, holeMat);
+      hm.position.set((h.cx / p.length) * L - L/2, 0, (h.cy / (p.width || 1)) * W - W/2);
+      hm.scale.set(1, 0.3, 0.6);
+      cadHoleGroup.add(hm);
+    });
+  }
+  root.add(cadHoleGroup);
+
+  // ── Dimension lines ──
+  cadDimGroup = buildDimLines(L, W, T);
+  root.add(cadDimGroup);
+
+  // Update HUD
+  document.getElementById('cadHudTitle').textContent = (comp.name || 'CAD MODEL').toUpperCase().slice(0, 28);
+  document.getElementById('cadHudDims').textContent  = `${p.length}×${p.width}×${p.thickness} mm`;
+  document.getElementById('cadModeBadge').textContent = 'PARAMETRIC MODEL';
+
+  // Set part scan buttons
+  buildScanParts(comp);
+  applyAllCadToggles();
+
+  // Auto-frame camera
+  cadCamera.position.set(L * 1.5, L * 0.8, L * 2);
+  cadCamera.lookAt(0, 0, 0);
+}
+
+function buildCompGeo(p, L, W, T) {
+  const type = p.type;
+  let geo;
+  if (type === 'wing-rib') {
+    const shape = new THREE.Shape();
+    const fw = W * 0.3, ft = T * 0.18, wt = T * 0.45 * 0.15;
+    shape.moveTo(-fw/2,-T/2); shape.lineTo(fw/2,-T/2); shape.lineTo(fw/2,-T/2+ft);
+    shape.lineTo(wt/2,-T/2+ft); shape.lineTo(wt/2,T/2-ft); shape.lineTo(fw/2,T/2-ft);
+    shape.lineTo(fw/2,T/2); shape.lineTo(-fw/2,T/2); shape.lineTo(-fw/2,T/2-ft);
+    shape.lineTo(-wt/2,T/2-ft); shape.lineTo(-wt/2,-T/2+ft); shape.lineTo(-fw/2,-T/2+ft); shape.closePath();
+    geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
+    geo.translate(-L/2, -T/2, 0);
+  } else if (type === 'bulkhead') {
+    const outer = new THREE.Shape(); outer.absarc(0,0,W/2,0,Math.PI*2,false);
+    const hole  = new THREE.Path();  hole.absarc(0,0,W/3,0,Math.PI*2,true);
+    outer.holes.push(hole);
+    geo = new THREE.ExtrudeGeometry(outer, { depth: T, bevelEnabled: false });
+    geo.translate(0, 0, -T/2);
+  } else if (type === 'panel') {
+    geo = new THREE.BoxGeometry(L, T * 0.5, W);
+  } else if (type === 'engine-mount') {
+    const path = new THREE.Shape(); path.absarc(0,0,W/2,0,Math.PI*2,false);
+    const inner = new THREE.Path(); inner.absarc(0,0,W/2-T*0.2,0,Math.PI*2,true);
+    path.holes.push(inner);
+    geo = new THREE.ExtrudeGeometry(path, { depth: T*1.5, bevelEnabled: false });
+    geo.translate(0, 0, -T*0.75);
+  } else if (type === 'stringer') {
+    const shape = new THREE.Shape();
+    const h = T, ww = W*0.35, thk = T*0.15;
+    shape.moveTo(0,0); shape.lineTo(ww,0); shape.lineTo(ww,thk);
+    shape.lineTo(thk,thk); shape.lineTo(thk,h); shape.lineTo(0,h); shape.closePath();
+    geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
+    geo.translate(-L/2, -h/2, 0);
+  } else {
+    const shape = new THREE.Shape();
+    const h = T, fw2 = W*0.8, thk2 = T*0.22;
+    shape.moveTo(-fw2/2,-h/2); shape.lineTo(fw2/2,-h/2); shape.lineTo(fw2/2,-h/2+thk2);
+    shape.lineTo(thk2/2,-h/2+thk2); shape.lineTo(thk2/2,h/2); shape.lineTo(-thk2/2,h/2);
+    shape.lineTo(-thk2/2,-h/2+thk2); shape.lineTo(-fw2/2,-h/2+thk2); shape.closePath();
+    geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
+    geo.translate(-L/2, -T/2, 0);
+  }
+  return geo;
+}
+
+function buildDimLines(L, W, T) {
+  const g = new THREE.Group(); g.name = 'dimLines';
+  const mat = new THREE.LineBasicMaterial({ color: 0x00e5ff, opacity: 0.5, transparent: true });
+  const addLine = (a, b) => {
+    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]);
+    g.add(new THREE.Line(geo, mat));
+  };
+  const off = 0.15;
+  // Length arrow
+  addLine([-L/2 - off, T/2 + off, 0], [L/2 + off, T/2 + off, 0]);
+  addLine([-L/2 - off, T/2 + off - 0.1, 0], [-L/2 - off, T/2 + off + 0.1, 0]);
+  addLine([ L/2 + off, T/2 + off - 0.1, 0], [ L/2 + off, T/2 + off + 0.1, 0]);
+  // Width arrow
+  addLine([L/2 + off, -W/2 - off, 0], [L/2 + off, W/2 + off, 0]);
+  addLine([L/2 + off - 0.1, -W/2 - off, 0], [L/2 + off + 0.1, -W/2 - off, 0]);
+  addLine([L/2 + off - 0.1,  W/2 + off, 0], [L/2 + off + 0.1,  W/2 + off, 0]);
+  return g;
+}
+
+function applyAllCadToggles() {
+  if (cadMeshSolid)      cadMeshSolid.visible      = cadSolidOn;
+  if (cadMeshWire)       cadMeshWire.visible        = cadWireOn;
+  if (cadFastenerGroup)  cadFastenerGroup.visible   = cadFastOn;
+  if (cadHoleGroup)      cadHoleGroup.visible       = cadHolesOn;
+}
+
+function cadToggle(what) {
+  const btn = document.getElementById({wire:'cadBtnWire',solid:'cadBtnSolid',rotate:'cadBtnRotate',fasteners:'cadBtnFast',holes:'cadBtnHoles'}[what]);
+  if (what === 'wire')       { cadWireOn   = !cadWireOn;   if (cadMeshWire)      cadMeshWire.visible      = cadWireOn;  }
+  if (what === 'solid')      { cadSolidOn  = !cadSolidOn;  if (cadMeshSolid)     cadMeshSolid.visible     = cadSolidOn; }
+  if (what === 'rotate')     { cadAutoRot  = !cadAutoRot; }
+  if (what === 'fasteners')  { cadFastOn   = !cadFastOn;   if (cadFastenerGroup) cadFastenerGroup.visible  = cadFastOn;  }
+  if (what === 'holes')      { cadHolesOn  = !cadHolesOn;  if (cadHoleGroup)     cadHoleGroup.visible      = cadHolesOn; }
+  if (btn) btn.classList.toggle('on', what === 'wire' ? cadWireOn : what === 'solid' ? cadSolidOn : what === 'rotate' ? cadAutoRot : what === 'fasteners' ? cadFastOn : cadHolesOn);
+}
+
+// ── Component Scan animation ────────────────────────────
+let scanInterval = null;
+function runComponentScan() {
+  if (!currentComponent || !cadRenderer) return;
+  const wrap = document.getElementById('scanProgressWrap');
+  const bar  = document.getElementById('scanBar');
+  wrap.style.display = 'block';
+  bar.style.width = '0%';
+
+  const parts = ['GEOMETRY', 'CROSS-SECTION', 'FASTENERS', 'LIGHT-HOLES', 'GD&T', 'MASS-PROPS', 'TOLERANCES', 'COMPLETE'];
+  let step = 0;
+  document.getElementById('cadModeBadge').textContent = 'SCANNING...';
+  document.getElementById('cadScanLine').style.opacity = '1';
+
+  // Animate scan line
+  const scanLineEl = document.getElementById('cadScanLine');
+  let scanY = 0, scanDir = 1;
+  const scanStep = () => {
+    scanY += scanDir * 3;
+    if (scanY > 100) { scanY = 100; scanDir = -1; }
+    if (scanY < 0)   { scanY = 0;   scanDir =  1; }
+    scanLineEl.style.top = scanY + '%';
+  };
+  const scanAnim = setInterval(scanStep, 16);
+
+  // Highlight parts sequentially
+  const partEls = document.querySelectorAll('.scan-part');
+  clearInterval(scanInterval);
+  scanInterval = setInterval(() => {
+    const pct = Math.min(100, Math.round((step + 1) / parts.length * 100));
+    bar.style.width = pct + '%';
+    partEls.forEach((el, i) => el.classList.toggle('active', i === step));
+    if (step < parts.length - 1) {
+      step++;
+    } else {
+      clearInterval(scanInterval);
+      clearInterval(scanAnim);
+      scanLineEl.style.opacity = '0';
+      document.getElementById('cadModeBadge').textContent = 'SCAN COMPLETE';
+      setTimeout(() => { wrap.style.display = 'none'; bar.style.width = '0%'; }, 2000);
+    }
+  }, 320);
+}
+
+function buildScanParts(comp) {
+  const partNames = ['GEOMETRY','CROSS-SECT','FASTENERS','LIGHT-HOLES','GD&T','MASS-PROPS','TOLERANCES','COMPLETE'];
+  const container = document.getElementById('scanParts');
+  container.innerHTML = partNames.map(n => `<div class="scan-part">${n}</div>`).join('');
+}
+
+// ── Render CAD Data panel ───────────────────────────────
+function renderCadDataPanel(comp) {
+  const cad = comp.cad;
+  const el  = document.getElementById('cadDataInner');
+  if (!cad) {
+    el.innerHTML = `
+      <div class="cad-grid">
+        <div class="cad-section" style="grid-column:1/-1;">
+          <div class="cad-section-title">Component Parameters</div>
+          ${kvRow('Type', comp.params.type)} ${kvRow('Material', comp.params.material)}
+          ${kvRow('Length', comp.params.length + ' mm')} ${kvRow('Width', comp.params.width + ' mm')}
+          ${kvRow('Thickness', comp.params.thickness + ' mm')} ${kvRow('Load', comp.params.load + ' kN')}
+        </div>
+      </div>
+      <div style="text-align:center;font-family:var(--mono);font-size:8px;color:var(--text3);padding:8px;letter-spacing:2px;">
+        USE ⊞ CAD GENERATE BUTTON BELOW FOR FULL ENGINEERING DATA
+      </div>`;
+    return;
+  }
+
+  const tb = cad.titleBlock, geo = cad.geometry, ms = cad.materialSpec;
+  el.innerHTML = `
+    <div class="cad-grid">
+      <div class="cad-section">
+        <div class="cad-section-title">Title Block</div>
+        ${kvRow('Drawing No.', tb.drawingNumber, 'hi')}
+        ${kvRow('Rev', tb.revision)}
+        ${kvRow('Part No.', tb.partNumber)}
+        ${kvRow('Material', tb.material)}
+        ${kvRow('Temper', tb.temper)}
+        ${kvRow('Process', tb.machining)}
+        ${kvRow('Finish', tb.finish)}
+        ${kvRow('Tolerance Class', cad.toleranceClass.toUpperCase())}
+        ${kvRow('Date', tb.date)}
+        ${kvRow('Standard', tb.standard)}
+      </div>
+      <div class="cad-section">
+        <div class="cad-section-title">Cross Section: ${geo.xSection.type || geo.profile}</div>
+        ${Object.entries(geo.xSection).filter(([k])=>k!=='type'&&k!=='stackup').map(([k,v])=>kvRow(k,v+(k.toLowerCase().includes('thk')||k.toLowerCase().includes('w')||k==='H'||k==='OD'||k==='ID'||k==='flangeW'||k==='filletR'?' mm':''))).join('')}
+        ${geo.xSection.stackup ? kvRow('Stackup', geo.xSection.stackup) : ''}
+      </div>
+      <div class="cad-section">
+        <div class="cad-section-title">Material Spec</div>
+        ${kvRow('Spec', ms.spec)} ${kvRow('Temper', ms.temper)}
+        ${kvRow('E (Young\'s)', ms.E + ' GPa')} ${kvRow('G (Shear)', ms.G + ' GPa')}
+        ${kvRow('Poisson', ms.poisson)} ${kvRow('CTE', ms.CTE + ' µm/m·°C')}
+        ${kvRow('KIC', ms.KIC + ' MPa√m')} ${kvRow('Surface Ra', ms.surfaceRa + ' µm')}
+      </div>
+      <div class="cad-section">
+        <div class="cad-section-title">GD&T Callouts</div>
+        ${geo.gdtCallouts.map(c=>`<div class="gdt-row"><span class="gdt-sym">${c.symbol}</span><span class="gdt-feat">${c.feature.replace(/_/g,' ')}</span><span class="gdt-val">${c.value}</span></div>`).join('')}
+        <div style="margin-top:8px;">
+          <div class="cad-section-title" style="font-size:7px;border:none;padding:0;margin-bottom:6px;">MASS PROPERTIES</div>
+          ${kvRow('Volume', geo.volumeMm3?.toLocaleString() + ' mm³')}
+          ${kvRow('Nominal Mass', geo.nominalMassKg + ' kg')}
+          ${kvRow('COG X', geo.massCOG?.x + ' mm')} ${kvRow('COG Y', geo.massCOG?.y + ' mm')}
+        </div>
+      </div>
+    </div>
+    <div class="cad-section" style="margin-top:14px;">
+      <div class="cad-section-title">Fastener Layout (${geo.fasteners.length} fasteners)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        ${geo.fasteners.slice(0,12).map((f,i)=>`<div class="fastener-row">#${i+1} &nbsp; ${f.type} &nbsp; ⌀${f.dia}mm &nbsp; X:${f.x} Y:${f.y}${f.torque?' &nbsp; '+f.torque:''}</div>`).join('')}
+        ${geo.fasteners.length > 12 ? `<div class="fastener-row" style="color:var(--text3);">+${geo.fasteners.length-12} more…</div>` : ''}
+      </div>
+    </div>
+    <div class="cad-section" style="margin-top:14px;">
+      <div class="cad-section-title">Notes</div>
+      ${tb.notes.map(n=>`<div class="fastener-row">${n}</div>`).join('')}
+      <div class="fastener-row" style="color:var(--text3);margin-top:4px;">${tb.toleranceNote}</div>
+    </div>`;
+}
+
+function kvRow(k, v, cls='') {
+  return `<div class="cad-kv"><span class="cad-k">${k}</span><span class="cad-v ${cls}">${v ?? '—'}</span></div>`;
+}
+
+// ── Hook generation into CAD viewer ────────────────────
+function afterGeneration(comp) {
+  if (activeTab === 'cad') {
+    if (!cadRenderer) initCadViewer();
+    else buildCadMesh(comp);
+  }
+  renderCadDataPanel(comp);
+}
+
+// CAD Generate button — calls /api/generate/cad
+document.addEventListener('DOMContentLoaded', () => {
+  // Add a "CAD GENERATE" button in the save strip
+  const strip = document.querySelector('.save-strip');
+  if (strip) {
+    const cadBtn = document.createElement('button');
+    cadBtn.className = 'btn btn-ghost btn-sm';
+    cadBtn.id = 'cadGenerateBtn';
+    cadBtn.textContent = '⊞ CAD GENERATE';
+    strip.insertBefore(cadBtn, strip.children[1]);
+
+    cadBtn.addEventListener('click', async () => {
+      if (!currentComponent) return;
+      cadBtn.textContent = '⊞ GENERATING...';
+      cadBtn.disabled = true;
+      try {
+        const res = await api.post('/generate/cad', currentComponent.params);
+        if (res.error) { alert('CAD generation failed: ' + res.error); return; }
+        currentComponent = res.component;
+        renderCadDataPanel(res.component);
+        switchTab('cad');
+        if (!cadRenderer) initCadViewer();
+        else buildCadMesh(res.component);
+        runComponentScan();
+      } catch(e) {
+        alert('CAD error: ' + e.message);
+      } finally {
+        cadBtn.textContent = '⊞ CAD GENERATE';
+        cadBtn.disabled = false;
+      }
+    });
+  }
+});
+</script>
+</body>
+</html>

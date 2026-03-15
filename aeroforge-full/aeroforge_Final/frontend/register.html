@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroForge — Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+<style>
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,.008) 2px,rgba(0,229,255,.008) 4px);pointer-events:none;}
+.auth-wrap{width:100%;max-width:440px;padding:20px;}
+.auth-logo{text-align:center;margin-bottom:32px;}
+.auth-logo a{font-family:var(--orb);font-size:22px;font-weight:900;color:var(--primary);letter-spacing:5px;text-decoration:none;text-shadow:0 0 20px rgba(0,229,255,.5);}
+.auth-logo p{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:3px;margin-top:6px;}
+.auth-card{background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:32px;}
+.auth-title{font-family:var(--orb);font-size:13px;font-weight:700;color:var(--primary);letter-spacing:4px;text-transform:uppercase;text-align:center;margin-bottom:28px;}
+.divider{border:none;border-top:1px solid var(--border);margin:20px 0;}
+.auth-footer{text-align:center;margin-top:20px;font-family:var(--mono);font-size:10px;color:var(--text3);}
+.auth-footer a{color:var(--primary);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-logo">
+    <a href="index.html">AEROFORGE</a>
+    <p>CREATE YOUR PILOT ACCOUNT</p>
+  </div>
+  <div class="auth-card">
+    <div class="auth-title">New Registration</div>
+    <div class="alert alert-error" id="err"></div>
+    <div class="alert alert-success" id="ok"></div>
+    <div class="form-group">
+      <label class="form-label">Full Name</label>
+      <input type="text" class="form-control" id="name" placeholder="Your full name"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <input type="email" class="form-control" id="email" placeholder="you@example.com"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">GitHub Username <span style="color:var(--text3)">(optional)</span></label>
+      <input type="text" class="form-control" id="github" placeholder="github-username"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-control" id="password" placeholder="Min. 6 characters"/>
+    </div>
+    <button class="btn btn-primary btn-full" id="regBtn" style="margin-top:8px;">
+      <span id="btnText">CREATE ACCOUNT</span>
+    </button>
+    <hr class="divider"/>
+    <p class="auth-footer">Already registered? <a href="login.html">Login here</a></p>
+  </div>
+</div>
+<script src="js/api.js"></script>
+<script>
+if (api.isLoggedIn()) window.location.href = '/home.html';
+
+const btn = document.getElementById('regBtn');
+const btnText = document.getElementById('btnText');
+const errEl = document.getElementById('err');
+const okEl  = document.getElementById('ok');
+
+function showErr(msg) { errEl.textContent = msg; errEl.classList.add('show'); okEl.classList.remove('show'); }
+
+async function doRegister() {
+  errEl.classList.remove('show'); okEl.classList.remove('show');
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const github = document.getElementById('github').value.trim();
+  const password = document.getElementById('password').value;
+  if (!name || !email || !password) return showErr('Name, email and password are required');
+  if (password.length < 6) return showErr('Password must be at least 6 characters');
+  btn.disabled = true; btnText.textContent = 'REGISTERING...';
+  const res = await api.post('/register', { name, email, github, password });
+  btn.disabled = false; btnText.textContent = 'CREATE ACCOUNT';
+  if (res.error) return showErr(res.error);
+  api.login(res.token, res.user);
+  okEl.textContent = 'Account created! Redirecting...'; okEl.classList.add('show');
+  setTimeout(() => window.location.href = '/home.html', 1000);
+}
+btn.addEventListener('click', doRegister);
+document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroForge — Comparison Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+.lab-layout{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start;}
+.controls-panel{position:sticky;top:72px;}
+.designs-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.design-card{background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:20px;transition:border-color .2s;position:relative;}
+.design-card.winner{border-color:var(--accent);box-shadow:0 0 20px rgba(57,255,20,.15);}
+.design-card.danger{border-color:var(--danger);}
+.design-label{font-family:var(--orb);font-size:11px;letter-spacing:3px;color:var(--primary);margin-bottom:4px;}
+.design-material{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;}
+.mini-viewer{width:100%;height:140px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;margin-bottom:14px;overflow:hidden;}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.bar-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px;width:80px;flex-shrink:0;text-transform:uppercase;}
+.bar-track{flex:1;background:var(--bg3);border-radius:2px;height:5px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width .8s ease;}
+.bar-val{font-family:var(--mono);font-size:9px;color:var(--text);width:40px;text-align:right;flex-shrink:0;}
+.verdict{font-family:var(--raj);font-size:12px;color:var(--text2);line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.verdict strong{color:var(--primary);}
+.risk-badge{position:absolute;top:14px;right:14px;}
+.winner-crown{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-family:var(--orb);font-size:9px;color:var(--accent);background:var(--card);border:1px solid var(--accent);padding:2px 10px;border-radius:2px;letter-spacing:2px;display:none;}
+.design-card.winner .winner-crown{display:block;}
+.comparison-table{margin-top:20px;}
+.comp-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;}
+.comp-table th{font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg3);}
+.comp-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+.comp-table tr:hover td{background:var(--bg3);}
+.best-val{color:var(--accent);font-weight:bold;}
+.worst-val{color:var(--danger);}
+@media(max-width:900px){.lab-layout{grid-template-columns:1fr;}.designs-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">RUNNING DESIGN ANALYSIS...</div>
+</div>
+
+<div class="page">
+  <div class="page-title">Comparison Lab</div>
+  <div class="page-sub">MULTI-DESIGN VARIATION ANALYSIS</div>
+
+  <div class="lab-layout">
+    <div class="controls-panel">
+      <div class="card">
+        <div class="card-title">Comparison Parameters</div>
+        <div class="form-group">
+          <label class="form-label">Base Component</label>
+          <select class="form-control" id="cType">
+            <option value="wing-rib">Wing Rib</option>
+            <option value="bracket">Bracket</option>
+            <option value="engine-mount">Engine Mount</option>
+            <option value="panel">Skin Panel</option>
+            <option value="stringer">Stringer</option>
+            <option value="bulkhead">Bulkhead</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Length (mm)</label>
+          <input type="number" class="form-control" id="cLength" value="400" min="50" max="5000"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Width (mm)</label>
+          <input type="number" class="form-control" id="cWidth" value="120" min="10" max="2000"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Thickness (mm)</label>
+          <input type="number" class="form-control" id="cThick" value="5" min="0.5" max="100" step="0.5"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Load (kN)</label>
+          <input type="number" class="form-control" id="cLoad" value="25" min="0.1" max="5000" step="0.5"/>
+        </div>
+        <button class="btn btn-primary btn-full" id="compareBtn">📊 RUN COMPARISON</button>
+        <div class="alert alert-error" id="cmpErr" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card" style="margin-top:0;">
+        <div class="card-title">Legend</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;background:var(--accent);border-radius:2px;"></div><span style="font-family:var(--mono);font-size:9px;color:var(--text2);">Design A — Base Material</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;background:#00b4d8;border-radius:2px;"></div><span style="font-family:var(--mono);font-size:9px;color:var(--text2);">Design B — Titanium</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;background:#d500f9;border-radius:2px;"></div><span style="font-family:var(--mono);font-size:9px;color:var(--text2);">Design C — Carbon Fiber</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;background:#ff9d00;border-radius:2px;"></div><span style="font-family:var(--mono);font-size:9px;color:var(--text2);">Design D — Reinforced AL</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div id="resultsWrap" style="display:none;">
+        <div class="designs-grid" id="designsGrid"></div>
+        <div class="comparison-table card" style="margin-top:20px;">
+          <div class="card-title">Metric Comparison Table</div>
+          <table class="comp-table" id="compTable"></table>
+        </div>
+      </div>
+      <div id="emptyState" class="card" style="text-align:center;padding:48px;">
+        <div style="font-size:40px;margin-bottom:16px;">📊</div>
+        <div style="font-family:var(--orb);font-size:12px;color:var(--text3);letter-spacing:3px;">CONFIGURE AND RUN COMPARISON</div>
+        <p style="font-family:var(--raj);color:var(--text2);margin-top:10px;font-size:13px;">Set parameters and click Run Comparison to generate 4 design variations with full structural analysis.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+api.requireAuth();
+initNav('compare');
+
+const COLORS = ['#39ff14','#00b4d8','#d500f9','#ff9d00'];
+const D_COLORS = [0x39ff14, 0x00b4d8, 0xd500f9, 0xff9d00];
+const renderers = [];
+
+// Load base from localStorage if coming from generator
+const base = JSON.parse(localStorage.getItem('af_compare_base') || 'null');
+if (base) {
+  document.getElementById('cType').value    = base.params?.type    || 'wing-rib';
+  document.getElementById('cLength').value  = base.params?.length  || 400;
+  document.getElementById('cWidth').value   = base.params?.width   || 120;
+  document.getElementById('cThick').value   = base.params?.thickness || 5;
+  document.getElementById('cLoad').value    = base.params?.load    || 25;
+}
+
+document.getElementById('compareBtn').addEventListener('click', async () => {
+  document.getElementById('cmpErr').classList.remove('show');
+  const params = {
+    type: document.getElementById('cType').value,
+    length: +document.getElementById('cLength').value,
+    width: +document.getElementById('cWidth').value,
+    thickness: +document.getElementById('cThick').value,
+    load: +document.getElementById('cLoad').value,
+    material: 'aluminum-7075'
+  };
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  const res = await api.post('/compare-designs', params);
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  if (res.error) { document.getElementById('cmpErr').textContent = res.error; document.getElementById('cmpErr').classList.add('show'); return; }
+  renderComparison(res.designs);
+});
+
+function renderComparison(designs) {
+  // Cleanup old renderers
+  renderers.forEach(r => { try { r.dispose(); } catch(e){} });
+  renderers.length = 0;
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsWrap').style.display = 'block';
+
+  // Find best/worst by score
+  const scores = designs.filter(d=>!d.error).map(d => d.prediction.overallScore);
+  const maxScore = Math.max(...scores);
+  const minScore = Math.min(...scores);
+  const winnerIdx = designs.findIndex(d => !d.error && d.prediction.overallScore === maxScore);
+
+  const grid = document.getElementById('designsGrid');
+  grid.innerHTML = '';
+
+  designs.forEach((d, i) => {
+    const card = document.createElement('div');
+    card.className = 'design-card' + (i === winnerIdx ? ' winner' : '') + (d.error || (d.prediction && d.prediction.safetyFactor < 1.5) ? ' danger' : '');
+
+    if (d.error) {
+      card.innerHTML = `<div class="design-label">${d.label}</div><div style="color:var(--danger);font-family:var(--mono);font-size:10px;">${d.error}</div>`;
+      grid.appendChild(card); return;
+    }
+
+    const p = d.prediction;
+    const risk = d.failureRisk || (p.safetyFactor < 1.5 ? 'HIGH' : p.safetyFactor < 2.5 ? 'MEDIUM' : 'LOW');
+    const riskClass = risk === 'HIGH' ? 'badge-danger' : risk === 'MEDIUM' ? 'badge-warn' : 'badge-ok';
+
+    card.innerHTML = `
+      <div class="winner-crown">★ RECOMMENDED</div>
+      <div class="risk-badge"><span class="badge ${riskClass}">${risk} RISK</span></div>
+      <div class="design-label">${d.label}</div>
+      <div class="design-material">${d.material || ''}</div>
+      <canvas class="mini-viewer" id="mini-${i}" width="300" height="140"></canvas>
+      <div class="bar-row"><span class="bar-label">Stress</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, p.stress/15)}%;background:#ff4444;"></div></div><span class="bar-val">${p.stress} MPa</span></div>
+      <div class="bar-row"><span class="bar-label">Weight</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, p.weight*5)}%;background:#ff9d00;"></div></div><span class="bar-val">${p.weight} kg</span></div>
+      <div class="bar-row"><span class="bar-label">Safety</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, p.safetyFactor/4*100)}%;background:var(--accent);"></div></div><span class="bar-val">${p.safetyFactor}×</span></div>
+      <div class="bar-row"><span class="bar-label">Score</span><div class="bar-track"><div class="bar-fill" style="width:${p.overallScore}%;background:var(--primary);"></div></div><span class="bar-val">${p.overallScore}/100</span></div>
+      <div class="verdict">${d.recommendation || ''}</div>`;
+    grid.appendChild(card);
+
+    // Mini 3D viewer
+    setTimeout(() => initMiniViewer(`mini-${i}`, d, D_COLORS[i]), 50 * i);
+  });
+
+  // Comparison table
+  buildTable(designs);
+}
+
+function initMiniViewer(canvasId, comp, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const W = canvas.offsetWidth || 280, H = 140;
+  canvas.width = W; canvas.height = H;
+  const s = new THREE.Scene(); s.background = new THREE.Color(0x060d17);
+  const cam = new THREE.PerspectiveCamera(50, W/H, 0.1, 50);
+  cam.position.set(3, 1.5, 4);
+  cam.lookAt(0,0,0);
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true });
+  r.setSize(W, H);
+  s.add(new THREE.AmbientLight(0x102030, 1));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(4,6,4); s.add(dl);
+  const p = comp.params;
+  const L = Math.min(p.length/150, 2.5), Ww = Math.min(p.width/150, 1.5), T = Math.min(p.thickness/15, 0.8);
+  const geo = p.type === 'bulkhead'
+    ? new THREE.TorusGeometry(Ww/2, T/3, 8, 24)
+    : p.type === 'engine-mount'
+    ? new THREE.CylinderGeometry(Ww/2, Ww/2, T, 16, 1, true)
+    : new THREE.BoxGeometry(L, T, Ww);
+  const mat = new THREE.MeshPhongMaterial({ color, shininess: 60 });
+  const mesh = new THREE.Mesh(geo, mat);
+  s.add(mesh);
+  renderers.push(r);
+  let frame;
+  function loop() { frame = requestAnimationFrame(loop); mesh.rotation.y += 0.012; r.render(s, cam); }
+  loop();
+}
+
+function buildTable(designs) {
+  const valid = designs.filter(d => !d.error);
+  if (!valid.length) return;
+  const metrics = ['Stress (MPa)','Weight (kg)','Safety Factor','Fatigue Life (M)','Score /100','Risk'];
+  const getVals = (metric) => valid.map(d => {
+    const p = d.prediction;
+    if (metric.includes('Stress')) return p.stress;
+    if (metric.includes('Weight')) return p.weight;
+    if (metric.includes('Safety')) return p.safetyFactor;
+    if (metric.includes('Fatigue')) return +(p.fatigueCycles/1e6).toFixed(2);
+    if (metric.includes('Score'))  return p.overallScore;
+    if (metric.includes('Risk'))   return d.failureRisk || '—';
+    return '—';
+  });
+
+  let html = `<thead><tr><th>Metric</th>${valid.map(d=>`<th>${d.label}</th>`).join('')}</tr></thead><tbody>`;
+  metrics.forEach(m => {
+    const vals = getVals(m);
+    const isRisk = m.includes('Risk');
+    let bestIdx = -1, worstIdx = -1;
+    if (!isRisk) {
+      const numVals = vals.map(Number);
+      const lowerBetter = m.includes('Stress') || m.includes('Weight');
+      bestIdx  = numVals.indexOf(lowerBetter ? Math.min(...numVals) : Math.max(...numVals));
+      worstIdx = numVals.indexOf(lowerBetter ? Math.max(...numVals) : Math.min(...numVals));
+    }
+    html += `<tr><td style="color:var(--text2);font-size:10px;">${m}</td>`;
+    vals.forEach((v, i) => {
+      const cls = i === bestIdx ? 'best-val' : i === worstIdx ? 'worst-val' : '';
+      const risk = v === 'HIGH' ? 'worst-val' : v === 'LOW' ? 'best-val' : '';
+      html += `<td class="${cls || risk}">${v}</td>`;
+    });
+    html += `</tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('compTable').innerHTML = html;
+}
+</script>
+</body>
+</html>

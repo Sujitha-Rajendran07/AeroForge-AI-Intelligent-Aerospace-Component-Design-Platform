@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroForge — Mission Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+<style>
+.welcome-strip{background:linear-gradient(135deg,#040d1a,#071522);border:1px solid var(--border2);border-radius:4px;padding:28px 32px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:20px;}
+.welcome-text h2{font-family:var(--orb);font-size:18px;color:var(--primary);letter-spacing:3px;}
+.welcome-text p{font-family:var(--raj);font-size:14px;color:var(--text2);margin-top:6px;}
+.welcome-badge{font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:2px;background:rgba(57,255,20,.08);border:1px solid rgba(57,255,20,.25);padding:6px 12px;border-radius:2px;}
+.feature-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:28px;}
+.feature-card{background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:24px;text-decoration:none;transition:all .2s;display:block;position:relative;overflow:hidden;}
+.feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--c,var(--primary)),transparent);opacity:0;transition:opacity .2s;}
+.feature-card:hover{border-color:var(--c,var(--primary));transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.feature-card:hover::before{opacity:1;}
+.fc-icon{font-size:28px;margin-bottom:14px;}
+.fc-title{font-family:var(--orb);font-size:11px;color:var(--c,var(--primary));letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;}
+.fc-desc{font-family:var(--raj);font-size:13px;color:var(--text2);line-height:1.6;}
+.stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+.stat-card{background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:18px;text-align:center;}
+.stat-num{font-family:var(--orb);font-size:26px;font-weight:700;color:var(--primary);}
+.stat-name{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+@media(max-width:768px){.stats-strip{grid-template-columns:1fr 1fr;}.welcome-strip{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+<div class="page">
+  <div class="welcome-strip">
+    <div class="welcome-text">
+      <h2 id="greeting">MISSION CONTROL</h2>
+      <p id="welcome-msg">Welcome back to AeroForge AI. Select a module to begin.</p>
+    </div>
+    <div class="welcome-badge">● SYSTEMS ONLINE</div>
+  </div>
+
+  <div class="stats-strip">
+    <div class="stat-card"><div class="stat-num" id="s-designs">—</div><div class="stat-name">Your Designs</div></div>
+    <div class="stat-card"><div class="stat-num" id="s-score">—</div><div class="stat-name">Avg. Score</div></div>
+    <div class="stat-card"><div class="stat-num" id="s-material">—</div><div class="stat-name">Top Material</div></div>
+    <div class="stat-card"><div class="stat-num" id="s-zone">—</div><div class="stat-name">Top Zone</div></div>
+  </div>
+
+  <div class="feature-cards">
+    <a href="generator.html" class="feature-card" style="--c:#00e5ff">
+      <div class="fc-icon">⚙️</div>
+      <div class="fc-title">Component Generator</div>
+      <div class="fc-desc">AI-driven generative design. Configure type, material, dimensions and get a 3D rendered component with structural analysis.</div>
+    </a>
+    <a href="comparison.html" class="feature-card" style="--c:#39ff14">
+      <div class="fc-icon">📊</div>
+      <div class="fc-title">Comparison Lab</div>
+      <div class="fc-desc">Compare up to 4 design variations side by side. Stress, weight, aerodynamic efficiency and failure risk analysis.</div>
+    </a>
+    <a href="aircraft-viewer.html" class="feature-card" style="--c:#d500f9">
+      <div class="fc-icon">✈️</div>
+      <div class="fc-title">Aircraft 3D Viewer</div>
+      <div class="fc-desc">Full aircraft 3D visualization. See how your generated components integrate into a complete airframe. Interactive orbit controls.</div>
+    </a>
+    <a href="dashboard.html" class="feature-card" style="--c:#ff9d00">
+      <div class="fc-icon">📁</div>
+      <div class="fc-title">Design Dashboard</div>
+      <div class="fc-desc">Personal library of all your generated designs. View, reopen, download or delete previous components.</div>
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Quick Generate</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+      <div class="form-group" style="margin:0;flex:1;min-width:150px;">
+        <label class="form-label">Component Type</label>
+        <select class="form-control" id="qtype">
+          <option value="wing-rib">Wing Rib</option>
+          <option value="bracket">Bracket</option>
+          <option value="engine-mount">Engine Mount</option>
+          <option value="panel">Skin Panel</option>
+          <option value="stringer">Stringer</option>
+          <option value="bulkhead">Bulkhead</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;flex:1;min-width:150px;">
+        <label class="form-label">Material</label>
+        <select class="form-control" id="qmat">
+          <option value="aluminum-7075">Aluminum 7075</option>
+          <option value="titanium-ti6al4v">Titanium Ti-6Al-4V</option>
+          <option value="carbon-fiber">Carbon Fiber</option>
+          <option value="inconel-718">Inconel 718</option>
+          <option value="steel-4340">Steel 4340</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="qGenBtn">QUICK GENERATE</button>
+    </div>
+    <div id="qResult" style="margin-top:16px;"></div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+api.requireAuth();
+initNav('home');
+
+const user = api.user();
+if (user) {
+  document.getElementById('greeting').textContent = `WELCOME, ${user.name.toUpperCase()}`;
+}
+
+// Load stats
+fetch('/api/stats').then(r=>r.json()).then(d=>{
+  document.getElementById('s-designs').textContent = d.count || 0;
+  document.getElementById('s-score').textContent   = d.avgScore || 0;
+  const matMap = {'aluminum-7075':'AL','titanium-ti6al4v':'TI','carbon-fiber':'CF','inconel-718':'IN','steel-4340':'ST'};
+  document.getElementById('s-material').textContent = matMap[d.topMaterial] || '—';
+  document.getElementById('s-zone').textContent     = d.topZone ? d.topZone.toUpperCase().slice(0,4) : '—';
+}).catch(()=>{});
+
+// Quick generate
+document.getElementById('qGenBtn').addEventListener('click', async () => {
+  const type = document.getElementById('qtype').value;
+  const material = document.getElementById('qmat').value;
+  const params = { type, material, length: 400, width: 120, thickness: 5, load: 20 };
+  const btn = document.getElementById('qGenBtn');
+  btn.disabled = true; btn.textContent = 'GENERATING...';
+  const res = await api.post('/generate-component', params);
+  btn.disabled = false; btn.textContent = 'QUICK GENERATE';
+  if (res.error) { document.getElementById('qResult').innerHTML = `<div class="alert alert-error show">${res.error}</div>`; return; }
+  const c = res.component;
+  const p = c.prediction;
+  document.getElementById('qResult').innerHTML = `
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-family:var(--orb);font-size:11px;color:var(--primary);letter-spacing:2px;">${c.name}</div>
+        <span class="badge ${p.overallScore>=70?'badge-ok':p.overallScore>=40?'badge-warn':'badge-danger'}">SCORE ${p.overallScore}</span>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-item"><div class="metric-val">${p.stress}</div><div class="metric-unit">MPa</div><div class="metric-lbl">Stress</div></div>
+        <div class="metric-item"><div class="metric-val">${p.weight}</div><div class="metric-unit">kg</div><div class="metric-lbl">Weight</div></div>
+        <div class="metric-item"><div class="metric-val">${p.safetyFactor}×</div><div class="metric-unit"></div><div class="metric-lbl">Safety Factor</div></div>
+        <div class="metric-item"><div class="metric-val">${(p.fatigueCycles/1e6).toFixed(2)}M</div><div class="metric-unit">cycles</div><div class="metric-lbl">Fatigue Life</div></div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <a href="generator.html" class="btn btn-ghost btn-sm">FULL GENERATOR</a>
+        <a href="dashboard.html" class="btn btn-ghost btn-sm">DASHBOARD</a>
+      </div>
+    </div>`;
+  // Auto-save
+  await api.post('/designs', c);
+});
+</script>
+</body>
+</html>

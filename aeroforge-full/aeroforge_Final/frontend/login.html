@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroForge — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+<style>
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,.008) 2px,rgba(0,229,255,.008) 4px);pointer-events:none;}
+.auth-wrap{width:100%;max-width:420px;padding:20px;}
+.auth-logo{text-align:center;margin-bottom:32px;}
+.auth-logo a{font-family:var(--orb);font-size:22px;font-weight:900;color:var(--primary);letter-spacing:5px;text-decoration:none;text-shadow:0 0 20px rgba(0,229,255,.5);}
+.auth-logo p{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:3px;margin-top:6px;}
+.auth-card{background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:32px;}
+.auth-title{font-family:var(--orb);font-size:13px;font-weight:700;color:var(--primary);letter-spacing:4px;text-transform:uppercase;text-align:center;margin-bottom:28px;}
+.divider{border:none;border-top:1px solid var(--border);margin:20px 0;}
+.auth-footer{text-align:center;margin-top:20px;font-family:var(--mono);font-size:10px;color:var(--text3);}
+.auth-footer a{color:var(--primary);text-decoration:none;}
+.auth-footer a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-logo">
+    <a href="index.html">AEROFORGE</a>
+    <p>AI AEROSPACE DESIGN PLATFORM</p>
+  </div>
+  <div class="auth-card">
+    <div class="auth-title">Pilot Login</div>
+    <div class="alert alert-error" id="err"></div>
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <input type="email" class="form-control" id="email" placeholder="pilot@aeroforge.ai" autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-control" id="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn btn-primary btn-full" id="loginBtn" style="margin-top:8px;">
+      <span id="btnText">LOGIN</span>
+    </button>
+    <hr class="divider"/>
+    <p class="auth-footer">No account? <a href="register.html">Register here</a></p>
+  </div>
+</div>
+<script src="js/api.js"></script>
+<script>
+if (api.isLoggedIn()) window.location.href = '/home.html';
+
+const emailEl = document.getElementById('email');
+const passEl  = document.getElementById('password');
+const btn     = document.getElementById('loginBtn');
+const btnText = document.getElementById('btnText');
+const err     = document.getElementById('err');
+
+function showErr(msg) { err.textContent = msg; err.classList.add('show'); }
+
+document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  err.classList.remove('show');
+  const email = emailEl.value.trim();
+  const password = passEl.value;
+  if (!email || !password) return showErr('Please enter email and password');
+  btn.disabled = true; btnText.textContent = 'AUTHENTICATING...';
+  const res = await api.post('/login', { email, password });
+  btn.disabled = false; btnText.textContent = 'LOGIN';
+  if (res.error) return showErr(res.error);
+  api.login(res.token, res.user);
+  window.location.href = '/home.html';
+}
+btn.addEventListener('click', doLogin);
+</script>
+</body>
+</html>

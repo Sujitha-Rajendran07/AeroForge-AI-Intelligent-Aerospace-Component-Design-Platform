@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AeroForge — 3D Aircraft Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+.viewer-layout{display:grid;grid-template-columns:1fr 280px;gap:20px;height:calc(100vh - 160px);min-height:500px;}
+.viewer-canvas-wrap{position:relative;background:#020509;border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;}
+#viewerCanvas{display:block;width:100%;height:100%;}
+.viewer-overlay{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.viewer-badge{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;background:rgba(2,5,9,.85);border:1px solid var(--border2);color:var(--primary);border-radius:2px;}
+.viewer-hint{position:absolute;bottom:12px;left:12px;font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;background:rgba(2,5,9,.7);padding:8px 12px;border-radius:2px;border:1px solid var(--border);line-height:1.8;}
+.viewer-sidebar{display:flex;flex-direction:column;gap:14px;overflow-y:auto;}
+.sidebar-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:16px;}
+.sidebar-title{font-family:var(--orb);font-size:9px;color:var(--primary);letter-spacing:3px;text-transform:uppercase;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.part-list{display:flex;flex-direction:column;gap:6px;}
+.part-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:2px;border:1px solid transparent;cursor:pointer;transition:var(--trans);}
+.part-item:hover{border-color:var(--border2);}
+.part-item.active{border-color:var(--primary);background:var(--pri-dim);}
+.part-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.part-name{font-family:var(--mono);font-size:10px;color:var(--text2);letter-spacing:1px;}
+.part-item.active .part-name{color:var(--primary);}
+.ctrl-row{display:flex;flex-direction:column;gap:8px;}
+.ctrl-btn{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:8px 12px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;border-radius:2px;transition:var(--trans);text-align:center;}
+.ctrl-btn:hover{border-color:var(--primary);color:var(--primary);}
+.ctrl-btn.active{border-color:var(--primary);color:var(--primary);background:var(--pri-dim);}
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);}
+.info-row:last-child{border-bottom:none;}
+.info-key{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;}
+.info-val{font-family:var(--mono);font-size:10px;color:var(--text);}
+@media(max-width:900px){.viewer-layout{grid-template-columns:1fr;height:auto;}.viewer-canvas-wrap{height:420px;}}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+
+<div class="page">
+  <div class="page-title">3D Aircraft Viewer</div>
+  <div class="page-sub">INTERACTIVE MODEL — DRAG TO ROTATE · SCROLL TO ZOOM</div>
+
+  <div class="viewer-layout">
+    <div class="viewer-canvas-wrap">
+      <canvas id="viewerCanvas"></canvas>
+      <div class="viewer-overlay">
+        <div class="viewer-badge">✈ AEROFORGE MODEL v1.0</div>
+        <div class="viewer-badge" id="fpsCounter">— FPS</div>
+      </div>
+      <div class="viewer-hint">
+        🖱 Drag — Rotate &nbsp;|&nbsp; Scroll — Zoom &nbsp;|&nbsp; Right-drag — Pan
+      </div>
+    </div>
+
+    <div class="viewer-sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-title">Components</div>
+        <div class="part-list">
+          <div class="part-item active" onclick="selectPart('all',this)"><div class="part-dot" style="background:#00e5ff"></div><span class="part-name">Full Aircraft</span></div>
+          <div class="part-item" onclick="selectPart('fuselage',this)"><div class="part-dot" style="background:#d1d5db"></div><span class="part-name">Fuselage</span></div>
+          <div class="part-item" onclick="selectPart('wings',this)"><div class="part-dot" style="background:#d1d5db"></div><span class="part-name">Wings</span></div>
+          <div class="part-item" onclick="selectPart('engines',this)"><div class="part-dot" style="background:#6b7280"></div><span class="part-name">Engines</span></div>
+          <div class="part-item" onclick="selectPart('tail',this)"><div class="part-dot" style="background:#d1d5db"></div><span class="part-name">Tail Assembly</span></div>
+          <div class="part-item" onclick="selectPart('gear',this)"><div class="part-dot" style="background:#374151"></div><span class="part-name">Landing Gear</span></div>
+        </div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="sidebar-title">Camera Presets</div>
+        <div class="preset-grid">
+          <button class="ctrl-btn" onclick="setPreset('front')">FRONT</button>
+          <button class="ctrl-btn" onclick="setPreset('side')">SIDE</button>
+          <button class="ctrl-btn" onclick="setPreset('top')">TOP</button>
+          <button class="ctrl-btn" onclick="setPreset('iso')">ISO</button>
+          <button class="ctrl-btn" onclick="setPreset('tail')">TAIL</button>
+          <button class="ctrl-btn" onclick="setPreset('close')">CLOSE-UP</button>
+        </div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="sidebar-title">Display</div>
+        <div class="ctrl-row">
+          <button class="ctrl-btn" id="btnWire" onclick="toggleWireframe()">WIREFRAME OFF</button>
+          <button class="ctrl-btn active" id="btnRotate" onclick="toggleAutoRotate()">AUTO-ROTATE ON</button>
+          <button class="ctrl-btn active" id="btnGrid" onclick="toggleGrid()">GRID ON</button>
+        </div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="sidebar-title">Model Info</div>
+        <div class="info-row"><span class="info-key">Length</span><span class="info-val">~73 m</span></div>
+        <div class="info-row"><span class="info-key">Wingspan</span><span class="info-val">~60 m</span></div>
+        <div class="info-row"><span class="info-key">Height</span><span class="info-val">~16 m</span></div>
+        <div class="info-row"><span class="info-key">Engines</span><span class="info-val">2× Turbofan</span></div>
+        <div class="info-row"><span class="info-key">Renderer</span><span class="info-val">Three.js r128</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+api.requireAuth();
+initNav('viewer');
+
+const canvas = document.getElementById('viewerCanvas');
+const wrap   = canvas.parentElement;
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x020509);
+scene.fog = new THREE.Fog(0x020509, 40, 100);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+
+// Orbit state
+const cam = { r: 22, theta: -0.45, phi: 1.0 };
+const target = new THREE.Vector3(0, 2, 0);
+let autoRotate = true, isLeft = false, isRight = false, lx = 0, ly = 0;
+
+function updateCam() {
+  cam.phi = Math.max(0.05, Math.min(Math.PI - 0.05, cam.phi));
+  cam.r   = Math.max(5, Math.min(60, cam.r));
+  camera.position.set(
+    target.x + cam.r * Math.sin(cam.phi) * Math.cos(cam.theta),
+    target.y + cam.r * Math.cos(cam.phi),
+    target.z + cam.r * Math.sin(cam.phi) * Math.sin(cam.theta)
+  );
+  camera.lookAt(target);
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 0) isLeft = true;
+  if (e.button === 2) isRight = true;
+  lx = e.clientX; ly = e.clientY;
+  autoRotate = false;
+  document.getElementById('btnRotate').classList.remove('active');
+  document.getElementById('btnRotate').textContent = 'AUTO-ROTATE OFF';
+});
+window.addEventListener('mouseup', () => { isLeft = false; isRight = false; });
+window.addEventListener('mousemove', e => {
+  const dx = e.clientX - lx, dy = e.clientY - ly;
+  lx = e.clientX; ly = e.clientY;
+  if (isLeft) { cam.theta -= dx * 0.01; cam.phi += dy * 0.01; updateCam(); }
+  if (isRight) {
+    const side = new THREE.Vector3().crossVectors(camera.getWorldDirection(new THREE.Vector3()), camera.up).normalize();
+    target.addScaledVector(side, -dx * 0.04);
+    target.y += dy * 0.04;
+    updateCam();
+  }
+});
+canvas.addEventListener('wheel', e => { cam.r += e.deltaY * 0.04; updateCam(); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('touchstart', e => { if (e.touches.length === 1) { isLeft = true; lx = e.touches[0].clientX; ly = e.touches[0].clientY; autoRotate = false; } });
+canvas.addEventListener('touchend', () => { isLeft = false; });
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && isLeft) {
+    const dx = e.touches[0].clientX - lx, dy = e.touches[0].clientY - ly;
+    lx = e.touches[0].clientX; ly = e.touches[0].clientY;
+    cam.theta -= dx * 0.01; cam.phi += dy * 0.01; updateCam();
+  }
+  e.preventDefault();
+}, { passive: false });
+
+// Lights
+scene.add(new THREE.AmbientLight(0x404060, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(10, 15, 10); sun.castShadow = true;
+sun.shadow.mapSize.width = sun.shadow.mapSize.height = 2048;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x8090b0, 0.5); fill.position.set(-8, 5, -5); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0x00e5ff, 0.3);  rim.position.set(-5, 3, 10); scene.add(rim);
+
+// Grid
+const grid = new THREE.GridHelper(60, 60, 0x4b5563, 0x374151);
+grid.material.opacity = 0.55; grid.material.transparent = true;
+scene.add(grid);
+
+// Materials
+const bM  = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.6, roughness: 0.3 });
+const aM  = new THREE.MeshStandardMaterial({ color: 0x00e5ff, metalness: 0.5, roughness: 0.4 });
+const dM  = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.4, roughness: 0.5 });
+const eM  = new THREE.MeshStandardMaterial({ color: 0x6b7280, metalness: 0.7, roughness: 0.25 });
+const tM  = new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.1, roughness: 0.9 });
+const wM  = new THREE.MeshStandardMaterial({ color: 0x1e3a5f, metalness: 0.8, roughness: 0.1 });
+
+// Aircraft
+const aircraft   = new THREE.Group();
+const partGroups = {};
+function add(key, mesh) {
+  if (!partGroups[key]) { partGroups[key] = new THREE.Group(); aircraft.add(partGroups[key]); }
+  partGroups[key].add(mesh);
+}
+
+const FL = 12, FR = 0.8;
+const fus = new THREE.Mesh(new THREE.CylinderGeometry(FR, FR, FL, 32), bM);
+fus.rotation.z = Math.PI / 2; add('fuselage', fus);
+
+const nose = new THREE.Mesh(new THREE.ConeGeometry(FR, 2, 32), bM);
+nose.rotation.z = -Math.PI / 2; nose.position.set(FL/2+1, 0, 0); add('fuselage', nose);
+
+const cpit = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 8, 0, Math.PI*2, 0, Math.PI/3), wM);
+cpit.position.set(FL/2+0.3, 0.35, 0); cpit.rotation.z = -Math.PI/6; add('fuselage', cpit);
+
+const stripe = new THREE.Mesh(new THREE.CylinderGeometry(FR+0.01, FR+0.01, FL, 32, 1, false, Math.PI*0.4, Math.PI*0.15), aM);
+stripe.rotation.z = Math.PI/2; stripe.position.y = 0.05; add('fuselage', stripe);
+
+// Wings
+const ws = new THREE.Shape();
+ws.moveTo(0,0); ws.lineTo(-1.54, 7); ws.lineTo(-0.66, 7); ws.lineTo(0.66, 0); ws.closePath();
+const we = { depth: 0.12, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 };
+const wr = new THREE.Mesh(new THREE.ExtrudeGeometry(ws, we), bM);
+wr.position.set(0.5, -0.3, FR*0.5); wr.rotation.x = -Math.PI/2; add('wings', wr);
+const wl = new THREE.Mesh(new THREE.ExtrudeGeometry(ws, we), bM);
+wl.position.set(0.5, -0.3, -FR*0.5); wl.rotation.x = Math.PI/2; wl.rotation.y = Math.PI; add('wings', wl);
+
+// Engines
+function eng(zs) {
+  const g = new THREE.Group();
+  const nac = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 1.8, 24), eM); nac.rotation.z = Math.PI/2; g.add(nac);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.05, 8, 24), aM); ring.rotation.y = Math.PI/2; ring.position.set(0.9, 0, 0); g.add(ring);
+  const exh = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.26, 0.3, 24), dM); exh.rotation.z = Math.PI/2; exh.position.set(-1.05, 0, 0); g.add(exh);
+  const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.08), bM); pylon.position.set(0, 0.5, 0); g.add(pylon);
+  g.position.set(-0.2, -0.7, zs * 3.2); return g;
+}
+add('engines', eng(1)); add('engines', eng(-1));
+
+// Tail
+const vts = new THREE.Shape();
+vts.moveTo(0,0); vts.lineTo(-1.5,2.2); vts.lineTo(-0.3,2.2); vts.lineTo(0.8,0); vts.closePath();
+const vt = new THREE.Mesh(new THREE.ExtrudeGeometry(vts, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 }), bM);
+vt.position.set(-FL/2-0.5, FR*0.4, -0.04); add('tail', vt);
+const ts = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.8, 0.12), aM);
+ts.position.set(-FL/2-1.2, FR+0.9, 0); add('tail', ts);
+const hs = new THREE.Shape();
+hs.moveTo(0,0); hs.lineTo(-1.0,2.8); hs.lineTo(-0.5,2.8); hs.lineTo(0.5,0); hs.closePath();
+const he = { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 };
+const htr = new THREE.Mesh(new THREE.ExtrudeGeometry(hs, he), bM); htr.position.set(-FL/2-0.3, 0, FR*0.3); htr.rotation.x = -Math.PI/2; add('tail', htr);
+const htl = new THREE.Mesh(new THREE.ExtrudeGeometry(hs, he), bM); htl.position.set(-FL/2-0.3, 0, -FR*0.3); htl.rotation.x = Math.PI/2; htl.rotation.y = Math.PI; add('tail', htl);
+
+// Gear
+function gear(x, z) {
+  const g = new THREE.Group();
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,1,8), dM); st.position.y = -0.5; g.add(st);
+  const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.12,16), tM); wh.rotation.x = Math.PI/2; wh.position.y = -1; g.add(wh);
+  const hb = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.14,16), eM); hb.rotation.x = Math.PI/2; hb.position.y = -1; g.add(hb);
+  g.position.set(x, -FR+0.1, z); return g;
+}
+add('gear', gear(FL/2-1.5, 0)); add('gear', gear(-0.5, 1.5)); add('gear', gear(-0.5, -1.5));
+
+aircraft.position.y = FR + 0.9;
+scene.add(aircraft);
+
+// Wireframe
+let wireOn = false;
+const wfMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true });
+const wfMeshes = [];
+aircraft.traverse(o => {
+  if (o.isMesh) {
+    const wm = new THREE.Mesh(o.geometry, wfMat);
+    wm.position.copy(o.position); wm.rotation.copy(o.rotation); wm.scale.copy(o.scale); wm.visible = false;
+    o.parent.add(wm); wfMeshes.push({ s: o, w: wm });
+  }
+});
+
+// Controls
+function selectPart(key, el) {
+  document.querySelectorAll('.part-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  Object.entries(partGroups).forEach(([k, g]) => g.visible = (key === 'all' || key === k));
+  const presets = { fuselage:[14,6,0], wings:[0,6,18], engines:[-4,4,18], tail:[-18,6,0], gear:[0,-4,16] };
+  if (key !== 'all' && presets[key]) {
+    const [x,y,z] = presets[key], r = Math.sqrt(x*x+y*y+z*z);
+    cam.r = r; cam.phi = Math.acos(y/r); cam.theta = Math.atan2(z, x); updateCam();
+  }
+}
+
+function setPreset(name) {
+  const map = {
+    front: { r:22, theta:0,          phi:Math.PI/2.2 },
+    side:  { r:22, theta:Math.PI/2,  phi:Math.PI/2.2 },
+    top:   { r:22, theta:-Math.PI/4, phi:0.15 },
+    iso:   { r:22, theta:-0.45,      phi:1.0  },
+    tail:  { r:22, theta:Math.PI,    phi:Math.PI/2.2 },
+    close: { r:10, theta:-0.45,      phi:1.0  },
+  };
+  if (map[name]) { Object.assign(cam, map[name]); updateCam(); }
+}
+
+function toggleWireframe() {
+  wireOn = !wireOn;
+  wfMeshes.forEach(({s,w}) => { s.visible = !wireOn; w.visible = wireOn; });
+  const btn = document.getElementById('btnWire');
+  btn.textContent = wireOn ? 'WIREFRAME ON' : 'WIREFRAME OFF';
+  btn.classList.toggle('active', wireOn);
+}
+
+function toggleAutoRotate() {
+  autoRotate = !autoRotate;
+  const btn = document.getElementById('btnRotate');
+  btn.textContent = autoRotate ? 'AUTO-ROTATE ON' : 'AUTO-ROTATE OFF';
+  btn.classList.toggle('active', autoRotate);
+}
+
+function toggleGrid() {
+  grid.visible = !grid.visible;
+  const btn = document.getElementById('btnGrid');
+  btn.textContent = grid.visible ? 'GRID ON' : 'GRID OFF';
+  btn.classList.toggle('active', grid.visible);
+}
+
+// Resize
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer.setSize(w, h); camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+resize(); window.addEventListener('resize', resize);
+
+// Loop
+let lt = performance.now(), ff = 0, fe = 0;
+updateCam();
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now(), dt = (now - lt) / 1000; lt = now;
+  ff++; fe += dt;
+  if (fe >= 0.5) { document.getElementById('fpsCounter').textContent = Math.round(ff/fe) + ' FPS'; ff = 0; fe = 0; }
+  if (autoRotate) { cam.theta += dt * 0.25; updateCam(); }
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
